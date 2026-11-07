@@ -52,25 +52,14 @@ button:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2
 .example { color: var(--warn); font-size: 0.82rem; margin: 0; }
 
 /* 본문 */
-.cols { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 28px; align-items: start; }
-@media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
 .label { font-weight: 800; font-size: 0.78rem; letter-spacing: 0.04em; color: var(--dust); margin: 0 0 8px; }
-aside { display: grid; gap: 16px; min-width: 0; }
 textarea { width: 100%; box-sizing: border-box; min-height: calc(1.6em * 3 + 22px); resize: vertical; background: var(--rock); color: var(--bone);
   border: 1px solid var(--seam); border-radius: 2px; padding: 10px; font-family: var(--f-mono); font-size: 0.8rem; line-height: 1.6; }
-.howto { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 0.82rem; color: var(--dust); }
-.howto li::before { content: "› "; color: var(--void); }
-.check { display: grid; gap: 3px; max-height: 360px; overflow: auto; }
-.cl { display: grid; grid-template-columns: 2.4em minmax(0, 1fr); gap: 8px; font-size: 0.78rem; align-items: baseline; }
-.cl .n { color: var(--dust); text-align: right; font-variant-numeric: tabular-nums; }
-.cl .code { font-family: var(--f-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cl .code .a { color: var(--g0); } .cl .code .b { color: var(--g2); } .cl .code .k { color: var(--g1); }
-.cl .why { grid-column: 2; color: var(--dust); overflow-wrap: anywhere; }
-.cl.fixed .n { color: var(--ok); } .cl.guess .n, .cl.guess .why { color: var(--warn); } .cl.bad .n, .cl.bad .why { color: var(--bad); }
-.tally { font-size: 0.8rem; color: var(--dust); }
 /* 사진 올리기 (맨 위, 화면 폭 전체) */
 .code-in { margin-top: 12px; }
 .code-in .label { margin-bottom: 6px; }
+.code-st { font-size: 0.82rem; color: var(--dust); margin-top: 6px; display: grid; gap: 2px; }
+.code-st .ok { color: var(--ok); } .code-st .warn { color: var(--warn); } .code-st .bad { color: var(--bad); }
 .code-in .label .dim { font-weight: 400; letter-spacing: 0; }
 .upload { margin-top: 18px; border: 1px dashed var(--seam); background: var(--rock); padding: 16px; display: grid; gap: 14px; }
 .upload.over { border-color: var(--void); }
@@ -86,19 +75,18 @@ button.go:hover { filter: brightness(1.1); color: var(--ground); background: var
 button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .thumbs .place { grid-column: 1 / -1; border: 1px dashed var(--seam); min-height: 120px; display: flex; align-items: center; justify-content: center; color: var(--dust); font-size: 0.9rem; text-align: center; padding: 12px; }
-.thumb { background: var(--ground); border: 1px solid var(--seam); display: grid; grid-template-rows: auto auto; }
-.thumb .img { aspect-ratio: 16 / 7; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-.thumb img { max-width: 100%; max-height: 100%; display: block; }
+.thumb { background: var(--ground); border: 1px solid var(--seam); display: grid; grid-template-rows: auto auto; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.thumb .img { min-width: 0; aspect-ratio: 16 / 7; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .thumb .bar2 { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 0.8rem; }
 .thumb .ord { font-weight: 800; color: var(--bone); margin-right: auto; font-variant-numeric: tabular-nums; }
 .thumb .nm { color: var(--dust); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .thumb button { padding: 2px 8px; font-size: 0.78rem; }
 .empty-up { color: var(--dust); font-size: 0.85rem; margin: 0; }
 .ocr-status { font-size: 0.8rem; color: var(--dust); min-height: 1.2em; }
-.tally span + span::before { content: " · "; }
 
 /* 런 지도 */
-.map { min-width: 0; display: grid; gap: 28px; }
+.map { min-width: 0; display: grid; gap: 28px; margin-top: 8px; }
 .act { display: grid; gap: 2px; }
 .act-h { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--seam); padding-bottom: 6px; margin-bottom: 6px; }
 .act-h h2 { font-weight: 800; font-size: 1.4rem; margin: 0; }
@@ -151,7 +139,7 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
   <div class="top">
     <div class="brand">상실의 동굴 · <b>런 기록 해독기</b></div>
     <div class="tools">
-      <button type="button" id="btn-sample">예시 넣기</button>
+      <button type="button" id="btn-check">코드 확인</button>
       <button type="button" id="btn-clear">지우기</button>
       <button type="button" class="main" id="btn-copy">AI용 글 복사</button>
     </div>
@@ -171,27 +159,14 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
   </section>
 
   <div class="code-in">
-    <p class="label">기록 코드 <span class="dim">· 변환하면 여기에 채워집니다. 구글 렌즈 등으로 뽑은 글을 직접 붙여도 됩니다</span></p>
+    <p class="label">기록 코드 <span class="dim">· 변환하면 여기에 채워집니다. 구글 렌즈 등으로 뽑은 글을 붙였다면 위의 코드 확인을 누르세요</span></p>
     <textarea id="src" rows="4" spellcheck="false" autocomplete="off" aria-label="기록 코드"></textarea>
+    <div class="code-st" id="code-st" role="status"></div>
   </div>
 
   <div class="hero" id="hero"></div>
 
-  <div class="cols">
-    <aside>
-      <ul class="howto">
-        <li>게임 오버의 기록 보기 화면을 쪽마다 PC 스크린샷으로 찍어 위에 올리고 변환을 누릅니다. 순서는 사진 아래 화살표로 바꿉니다.</li>
-        <li>휴대폰 사진은 잘 못 읽습니다. 그럴 때는 구글 렌즈로 글자를 복사해 위의 기록 코드 칸에 붙입니다.</li>
-        <li>지도를 보거나, AI용 글 복사로 AI에 넘깁니다. 처리는 이 브라우저 안에서만 합니다.</li>
-      </ul>
-      <div>
-        <p class="label">줄 검사 <span class="tally" id="tally"></span></p>
-        <div class="check" id="check"></div>
-      </div>
-    </aside>
-
-    <main class="map" id="map"></main>
-  </div>
+  <main class="map" id="map"></main>
 </div>
 
 <script>
@@ -984,10 +959,9 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
 <script>
 (function () {
   const D = window.RunLogDecode, N = RUNLOG_NAMES;
-  const SAMPLE = "1/2쪽  (1) 이전 (2) 다음 (X) 점수표\nQKBRZ4CE2258NNB433TH4AS2HLANQ3REJ23NF22L2CE2B3225DF64M363HCAA2UAAJL64J2A N\n3S25D68AU2039DJ25L8A2MW8J2B3A25D884C462RFJE265A2MJ7A2A3225DKN4VK6AFMSV44 8\nPJZ28S6M426C22SSL2TSG2KSF44S6S32N6354AC2ASS46TJC2KSM4A52A48SQ39FA22J32KL E\nADJ2B3S25DDN4L56BF5T55AR2B36EQ39ASA2S3S2M62J2A3235D8Q4D4639CJA3S7J2L29E2 Y\nA3J25DH65M26CFXSF56K2V42A6Z46AC22SSC4BJ823S344C2E54A6A23AC22SSU43KU2KCDA E\nYT8D273D32222GE3N42K2B6A8CEAFASW26E23MJE6JA3A25DNN2426BF7SB4CG2624AN3LJ3 5\nSK4G62F38JCTLSM44NJ846S6C452C28SS473KG6KCD2YJ23725J2533J2K4J28Q4AG65B6GK H\nJA6EKJ26K8A2J4J38QQAN62A6GUJU5NF226FU7S5GTJ33E2228THS2J4248QAED67A2GVJ58 7\nWK23PCL9YJJ56J722PCLAGQJM5SDJ3QCJ3YUJV7E923QCG7YQJT6ADJ3737B2J4228Q6B6N3 U\nA6GJJS4NG2243BA2J4238Q4B688ALU8JM6WY2Z36JNLPJHNT5E9SV2222J5R2N2626L64KB2 X\n2/2쪽  (1) 이전 (2) 다음 (X) 점수표\n26CN7422ASB3L8SJB7Z2RB2B26DA2T8WQ33DSF24EL6244724EEKKGAMJAPP2ZDJS3W22JLW Q\n422A3S25DKNA4662RAA24N5J2MN4JJA3S25DAN3LK6BF3S358LJV28A6P426C2ASS44XKE6K A\nSB4622K38E6A242C2ASSL37K23BSM4CH2A36NNBLJDSZ4CS2638JNKGJCSZ48GJR26A6E26A N\nC22SSU37KQ2BCD5YK2T66D224BH23K4248QJAGN5A6GR243EH23LFSB56S2Y48J6A466C22S 3\nS47XK22BCD7GL2L3E823MFS94862B5AN6N22AC24SSC43JQ2BCDBGT8FJW2V32222GJ5J3A2 R\n3ANA9862JAKA29M2SH6HS2G6252222SKF2E25843K6224644U6AJGACZ27222222N2B3 Z";
   const $ = id => document.getElementById(id);
   const src = $('src');
-  let lastLog = '', named = true, isSample = false;
+  let lastLog = '', named = true;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
   function nm(table, id) {
@@ -1093,27 +1067,23 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     }
   }
 
+  /* 코드 확인 결과: 코드 칸 아래에 한 줄 요약 + 문제 있는 줄만 */
   function renderCheck(lines) {
-    const cnt = { ok: 0, fixed: 0, guess: 0, bad: 0 };
-    $('check').innerHTML = lines.map(l => {
-      cnt[l.status]++;
-      let code = '';
-      for (let i = 0; i < l.text.length; i += 8) code += '<span class="' + ((i / 8) % 2 ? 'b' : 'a') + '">' + esc(l.text.slice(i, i + 8)) + '</span>';
-      const why = l.status === 'ok' ? '' : '<div class="why">' + esc(l.note) + '</div>';
-      return '<div class="cl ' + l.status + '"><span class="n">' + l.n + '</span><span class="code">' + code + '</span>' + why + '</div>';
-    }).join('') || '<div class="empty">코드 줄을 찾지 못했습니다. 72글자 줄과 끝의 확인 글자가 함께 들어 있는지 확인하세요.</div>';
-    const t = [lines.length + '줄'];
-    if (cnt.fixed) t.push('고침 ' + cnt.fixed);
-    if (cnt.guess) t.push('확인 필요 ' + cnt.guess);
-    if (cnt.bad) t.push('실패 ' + cnt.bad);
-    $('tally').innerHTML = lines.length ? t.map(x => '<span>' + x + '</span>').join('') : '';
+    const st = $('code-st');
+    if (!lines.length) { st.innerHTML = '<span class="bad">코드 줄을 찾지 못했습니다. 72글자 줄과 끝의 확인 글자가 함께 들어 있는지 확인하세요.</span>'; return; }
+    const prob = lines.filter(l => l.status !== 'ok');
+    const fixed = prob.filter(l => l.status === 'fixed').length, guess = prob.filter(l => l.status === 'guess').length, bad = prob.filter(l => l.status === 'bad').length;
+    let h = lines.length + '줄 · ';
+    if (!prob.length) h += '<span class="ok">모두 확인 글자가 맞습니다</span>';
+    else h += [fixed ? '<span class="ok">' + fixed + '줄 고침</span>' : '', guess ? '<span class="warn">' + guess + '줄 확인 필요</span>' : '', bad ? '<span class="bad">' + bad + '줄 고치지 못함</span>' : ''].filter(Boolean).join(' · ');
+    const rows = prob.filter(l => l.status !== 'fixed').map(l => '<span class="' + (l.status === 'bad' ? 'bad' : 'warn') + '">' + l.n + '번째 줄: ' + esc(l.note) + '</span>');
+    st.innerHTML = '<span>' + h + '</span>' + rows.join('');
   }
 
   function render() {
     if (!src.value.trim()) {
-      $('check').innerHTML = '';
-      $('tally').innerHTML = '';
-      $('hero').innerHTML = '<p class="seed"><small>시드</small>—</p><p class="empty">기록 코드를 붙여넣으면 런 지도가 나옵니다.</p>';
+      $('code-st').innerHTML = '';
+      $('hero').innerHTML = '<p class="seed"><small>시드</small>—</p><p class="empty">스크린샷을 올리고 변환을 누르거나, 코드를 붙이고 코드 확인을 누르면 런 지도가 나옵니다.</p>';
       $('map').innerHTML = '';
       lastLog = '';
       return;
@@ -1136,13 +1106,11 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     }
     f.push('<li>기록 판 <b>' + head.ver + '</b></li>');
     $('hero').innerHTML = '<p class="seed"><small>시드</small>' + head.seed + '</p><ul class="facts">' + f.join('') + '</ul>' +
-      (isSample ? '<p class="example">지금 보이는 것은 시험용 예시 기록입니다. 무작위로 만든 기록이고, 둘째 줄의 한 글자를 일부러 0으로 바꿔 두어 복원되는 모습을 보여줍니다.</p>' : '') +
       (named ? '' : '<p class="example">이 기록은 판 ' + head.ver + '이라 지금 이름표(판 ' + N.version + ')와 번호가 달라 이름 없이 번호만 보여줍니다.</p>');
   }
-  function setText(t, sample) { src.value = t; isSample = sample; render(); }
-  src.addEventListener('input', () => { isSample = false; render(); });
-  $('btn-sample').addEventListener('click', () => setText(SAMPLE, true));
-  $('btn-clear').addEventListener('click', () => { setText('', false); src.focus(); });
+  function setText(t) { src.value = t; render(); }
+  $('btn-check').addEventListener('click', render);
+  $('btn-clear').addEventListener('click', () => { setText(''); src.focus(); });
   $('btn-copy').addEventListener('click', () => {
     const done = m => { $('toast').textContent = m; setTimeout(() => { $('toast').textContent = ''; }, 2500); };
     if (!lastLog) { done('먼저 기록 코드를 붙여넣으세요.'); return; }
@@ -1194,7 +1162,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
         ocrSt.textContent = '코드 줄을 찾지 못했습니다. 기록 보기 화면의 PC 스크린샷인지 확인하세요.';
       } else {
         ocrSt.textContent = texts.length + '줄 읽음' + (bad ? ' · ' + bad + '줄은 확인 글자가 맞지 않습니다. 아래 줄 검사에서 확인하세요.' : '');
-        setText(texts.join('\n'), false);
+        setText(texts.join('\n'));
       }
     } catch (e) {
       ocrSt.textContent = '사진을 읽지 못했습니다: ' + e.message;
@@ -1252,7 +1220,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   });
 
   drawQueue();
-  setText(SAMPLE, true);
+  render();
 })();
 </script>
 </body>
