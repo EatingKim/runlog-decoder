@@ -9,8 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbit&family=Gothic+A1:wght@400;600;800&family=Nanum+Gothic+Coding:wght@400;700&display=swap">
 <style>
-/* 레이아웃: 위에 런 요약(시드가 제목), 왼쪽 좁은 칸 = 기록 코드 붙여넣기와 줄 검사,
-   오른쪽 = 막·층을 따라 올라가는 런 지도. 좁은 화면에서는 위아래로 쌓음.
+/* 레이아웃: 위에서부터 스크린샷 올리기 → 기록 코드 → 런 요약(시드) → 경로(모든 막의 층 네모, 올리면 팝업) → 유물 → 덱. 한 줄로 쌓음 (슬레이 더 스파이어 런 기록처럼).
    한 가지 세계로 고정한 어두운 화면: 공허 동굴 바탕 + 게임 안 글자색(하급 흰·중급 파랑·상급 노랑·하자 붉은 보라·이벤트 청록) */
 :root {
   color-scheme: dark;
@@ -87,12 +86,29 @@ button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 
 /* 런 지도 */
 .map { min-width: 0; display: grid; gap: 28px; margin-top: 8px; }
-.act { display: grid; gap: 2px; }
-.act-h { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--seam); padding-bottom: 6px; margin-bottom: 6px; }
-.act-h h2 { font-weight: 800; font-size: 1.4rem; margin: 0; }
-.act-h span { color: var(--dust); font-size: 0.85rem; }
 .r1 { color: var(--g0); } .r2 { color: var(--elite); } .r3 { color: var(--boss); } .r4 { color: var(--camp); }
 .r5 { color: var(--g2); } .r6 { color: var(--cyan); } .r7 { color: var(--gold); }
+.blk { display: grid; gap: 10px; border-top: 1px solid var(--seam); padding-top: 14px; }
+.blk-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.blk h2 { font-weight: 800; font-size: 1.25rem; margin: 0; }
+.blk h3 { font-weight: 800; font-size: 0.95rem; margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.sum { color: var(--dust); font-size: 0.86rem; font-weight: 400; }
+.sum b { color: var(--bone); font-weight: 600; }
+.path { display: grid; gap: 8px; }
+.act-row { display: grid; grid-template-columns: 2.6em minmax(0, 1fr); gap: 10px; align-items: center; }
+.act-n { font-weight: 800; color: var(--dust); }
+.hint { margin: 2px 0 0; color: var(--dust); font-size: 0.78rem; }
+.names { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 16px; font-size: 0.9rem; }
+.names.cnt b { color: var(--dust); font-weight: 600; margin-right: 2px; }
+.sub { font-size: 0.86rem; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
+.sub .gap { margin-left: 18px; }
+.minions { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.mcard { background: var(--rock); border: 1px solid var(--seam); padding: 10px 12px; display: grid; gap: 4px; min-width: 0; }
+.mc-h { font-weight: 800; }
+.mc-s { font-size: 0.78rem; color: var(--dust); }
+.mc-m { display: grid; gap: 1px; font-size: 0.85rem; }
+.endline { color: var(--dust); font-size: 0.85rem; margin: 0; }
+.pr.actend { border-top: 1px solid var(--seam); padding-top: 4px; margin-top: 2px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.8rem; color: var(--dust); align-items: center; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend .sw { width: 12px; height: 12px; display: inline-block; border: 1px solid currentColor; background: color-mix(in srgb, currentColor 22%, transparent); }
@@ -127,18 +143,6 @@ button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 .stats { font-family: var(--f-mono); font-size: 0.76rem; color: var(--dust); }
 
 /* 막 끝·런 끝 덱 */
-.deck { margin-top: 10px; background: var(--rock); border: 1px solid var(--seam); padding: 12px 14px; display: grid; gap: 8px; }
-.deck-h { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 0.85rem; color: var(--dust); }
-.deck-h b { color: var(--bone); font-weight: 600; }
-.deck-h .ttl { font-weight: 800; color: var(--bone); }
-.tbl { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
-th.num { text-align: right; }
-th { text-align: left; font-weight: 400; color: var(--dust); font-size: 0.72rem; letter-spacing: 0.06em; padding: 2px 10px 4px 0; white-space: nowrap; }
-td { padding: 3px 10px 3px 0; vertical-align: top; border-top: 1px solid var(--seam); }
-td.num { text-align: right; white-space: nowrap; }
-td.mods { min-width: 16em; }
-.end-list { font-size: 0.85rem; display: grid; gap: 2px; }
 .warn-row { color: var(--warn); font-size: 0.85rem; padding: 8px 0; }
 
 details.raw summary { cursor: pointer; color: var(--dust); font-size: 0.85rem; }
@@ -1002,17 +1006,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       return s;
     }).join('<span class="dim"> / </span>');
   }
-  function deckBlock(title, st, extra) {
-    const rows = st.minions.map(m => '<tr><td>' + nm('minion', m.t) + (m.bench ? ' <span class="dim">보관</span>' : '') + '</td>' +
-      '<td class="num">' + m.hp + '</td><td class="num">' + m.atk + '</td><td class="num">' + m.arm + '</td><td class="num">' + m.cd + '</td>' +
-      '<td class="mods">' + mods(m.mods) + '</td></tr>').join('');
-    return '<div class="deck"><div class="deck-h"><span class="ttl">' + title + '</span>' +
-      '<span>체력 <b class="num">' + st.hp + '/' + st.mhp + '</b></span><span>골드 <b class="num">' + st.gold + '</b></span>' +
-      '<span>영구 강화 ' + D.UPG.map((u, i) => u + ' <b class="num">' + st.up[i] + '</b>').join(' ') + '</span>' +
-      '<span>하수인 <b class="num">' + st.minions.length + '</b></span></div>' +
-      '<div class="tbl"><table><thead><tr><th>하수인</th><th class="num">체력+</th><th class="num">공+</th><th class="num">방+</th><th class="num">주기−</th><th>모듈</th></tr></thead><tbody>' +
-      rows + '</tbody></table></div>' + (extra || '') + '</div>';
-  }
+
 
   /* 구조 기록 → 막 · 층 묶음 */
   function renderMap(ev) {
@@ -1036,27 +1030,53 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     }
     lastActs = acts;
     let h = '';
-    if (acts.length) h += '<div class="legend">' + [1, 2, 3, 4, 5, 6, 7].map(t => '<span><i class="sw r' + t + '"></i>' + D.ROOM[t] + '</span>').join('') + '<span class="dim">네모에 마우스를 올리거나 누르면 그 층 내용이 나옵니다</span></div>';
-    acts.forEach((a, ai) => {
-      const rooms = a.floors.filter(f => f.e).length;
-      h += '<section class="act"><div class="act-h"><h2>' + a.n + '막</h2><span>' + rooms + '개 층</span></div><div class="tiles">';
-      a.floors.forEach((f, fi) => {
-        const r = f.e, t = r ? r.room : 0;
-        const nm0 = r ? (D.ROOM[t] || '방') : '기록';
-        const hurt = f.items.filter(x => x.type === 'battle').reduce((u, x) => u + x.lost, 0);
-        h += '<button type="button" class="tile r' + t + '" data-a="' + ai + '" data-f="' + fi + '" aria-label="' + a.n + '막 ' + (r ? r.floor + '층 ' : '') + nm0 + '">' +
-          '<b>' + nm0[0] + '</b><small class="num">' + (r ? r.floor : '·') + '</small>' + (hurt ? '<i class="hp num">−' + hurt + '</i>' : '') + '</button>';
+    /* 1) 경로: 모든 막의 층을 한 칸에, 막마다 한 줄 */
+    if (acts.length) {
+      h += '<section class="blk"><div class="blk-h"><h2>경로</h2><div class="legend">' + [1, 2, 3, 4, 5, 6, 7].map(t => '<span><i class="sw r' + t + '"></i>' + D.ROOM[t] + '</span>').join('') + '</div></div><div class="path">';
+      acts.forEach((a, ai) => {
+        h += '<div class="act-row"><span class="act-n">' + a.n + '막</span><div class="tiles">';
+        a.floors.forEach((f, fi) => {
+          const r = f.e, t = r ? r.room : 0;
+          const nm0 = r ? (D.ROOM[t] || '방') : '기록';
+          const hurt = f.items.filter(x => x.type === 'battle').reduce((u, x) => u + x.lost, 0);
+          h += '<button type="button" class="tile r' + t + '" data-a="' + ai + '" data-f="' + fi + '" aria-label="' + a.n + '막 ' + (r ? r.floor + '층 ' : '') + nm0 + '">' +
+            '<b>' + nm0[0] + '</b><small class="num">' + (r ? r.floor : '·') + '</small>' + (hurt ? '<i class="hp num">−' + hurt + '</i>' : '') + '</button>';
+        });
+        h += '</div></div>';
       });
-      h += '</div>';
-      if (a.deck) h += deckBlock(a.n + '막을 마칠 때', a.deck);
-      h += '</section>';
-    });
+      h += '<p class="hint">네모에 마우스를 올리거나 누르면 그 층 내용이 나옵니다. 빨간 숫자는 그 층에서 잃은 체력입니다.</p></div></section>';
+    }
     if (end && end.state) {
-      const extra = '<div class="end-list">' +
-        '<div><span class="k">유물 ' + end.relics.length + '</span>' + (end.relics.map(v => nm('relic', v)).join(', ') || '<span class="dim">없음</span>') + '</div>' +
-        '<div><span class="k">저주</span>' + (end.curses.map(c => nm('curse', c.id) + ' <span class="dim num">×' + c.n + '</span>').join(', ') || '<span class="dim">없음</span>') + '</div>' +
-        '<div><span class="k">물약</span>' + (end.potions.map(v => nm('potion', v)).join(', ') || '<span class="dim">없음</span>') + '</div></div>';
-      h += '<section class="act"><div class="act-h"><h2>런 끝</h2><span>' + D.ENDING[end.ending] + ' · 마지막 전투 ' + encName(end.enc) + '</span></div>' + deckBlock('남은 덱', end.state, extra) + '</section>';
+      /* 2) 유물 현황 */
+      const gr = v => (N.grade && N.grade.relic ? N.grade.relic[v] || 0 : 0);
+      const GN = ['하급', '중급', '상급'];
+      const rel = end.relics.slice().sort((p, q) => gr(q) - gr(p));
+      const cnt = [0, 0, 0];
+      rel.forEach(v => { cnt[Math.min(2, gr(v))]++; });
+      h += '<section class="blk"><div class="blk-h"><h2>유물 <span class="num">(' + rel.length + ')</span></h2><span class="sum">' +
+        [2, 1, 0].filter(g => cnt[g]).map(g => '<span class="n' + g + '">' + GN[g] + ' ' + cnt[g] + '</span>').join(' · ') + '</span></div>' +
+        (rel.length ? '<div class="names">' + rel.map(v => '<span>' + nm('relic', v) + '</span>').join('') + '</div>' : '<p class="dim">없음</p>') +
+        '<div class="sub"><span class="k">저주</span>' + (end.curses.map(c => nm('curse', c.id) + ' <span class="dim num">×' + c.n + '</span>').join(', ') || '<span class="dim">없음</span>') +
+        '<span class="k gap">물약</span>' + (end.potions.filter(v => v > 0).map(v => nm('potion', v)).join(', ') || '<span class="dim">없음</span>') + '</div></section>';
+      /* 3) 덱 형태: 하수인과 모듈 */
+      const st = end.state;
+      const mods = {};
+      st.minions.forEach(m => m.mods.forEach(x => { if (x) { mods[x.id] = (mods[x.id] || 0) + 1; if (x.fuse) mods[x.fuse] = (mods[x.fuse] || 0) + 1; } }));
+      const mg = id => (N.grade && N.grade.module ? N.grade.module[id] || 0 : 0);
+      const ml = Object.keys(mods).map(Number).sort((p, q) => mg(q) - mg(p) || mods[q] - mods[p]);
+      const total = ml.reduce((u, id) => u + mods[id], 0);
+      const mc = [0, 0, 0, 0];
+      ml.forEach(id => { mc[Math.min(3, mg(id))] += mods[id]; });
+      const MG = ['하급', '중급', '상급', '하자'];
+      h += '<section class="blk"><div class="blk-h"><h2>덱</h2><span class="sum">체력 <b class="num">' + st.hp + '/' + st.mhp + '</b> · 골드 <b class="num">' + st.gold + '</b> · 영구 강화 ' +
+        D.UPG.map((u, i) => u + ' <b class="num">' + st.up[i] + '</b>').join(' ') + '</span></div>' +
+        '<h3>하수인 <span class="num">(' + st.minions.length + ')</span></h3><div class="minions">' +
+        st.minions.map(m => '<div class="mcard"><div class="mc-h">' + nm('minion', m.t) + (m.bench ? ' <span class="dim">보관</span>' : '') + '</div>' +
+          '<div class="mc-s num">체력 +' + m.hp + ' · 공 +' + m.atk + ' · 방 +' + m.arm + ' · 주기 −' + m.cd + '</div>' +
+          '<div class="mc-m">' + m.mods.map(x => x ? '<span>' + nm('module', x.id) + (x.growth ? ' <span class="dim num">+' + x.growth + '</span>' : '') + (x.fuse ? ' <span class="dim">⊕</span> ' + nm('module', x.fuse) : '') + '</span>' : '<span class="dim">빈 칸</span>').join('') + '</div></div>').join('') + '</div>' +
+        '<h3>모듈 <span class="num">(' + total + ')</span> <span class="sum">' + [2, 1, 0, 3].filter(g => mc[g]).map(g => '<span class="n' + g + '">' + MG[g] + ' ' + mc[g] + '</span>').join(' · ') + '</span></h3>' +
+        '<div class="names cnt">' + ml.map(id => '<span><b class="num">' + mods[id] + 'x</b> ' + nm('module', id) + '</span>').join('') + '</div></section>';
+      h += '<p class="endline">' + D.ENDING[end.ending] + ' · 마지막 전투 ' + encName(end.enc) + '</p>';
     }
     for (const w of warn) h += '<div class="warn-row">' + esc(w) + '</div>';
     h += '<details class="raw"><summary>글로 보기 (AI에 넘기는 글)</summary><pre>' + esc(lastLog) + '</pre></details>';
@@ -1108,6 +1128,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     }
     if (f.stats.length) rows.push('<div class="pr stats"><span class="k">덱 변화</span>' + f.stats.map(s => s.t ? '칸' + s.slot + ' ' + esc((named && N.minion[s.t]) || '#' + s.t) + ' 체+' + s.hp + ' 공+' + s.atk + ' 방+' + s.arm + ' 주−' + s.cd : '칸' + s.slot + ' 빔').join(' · ') + '</div>');
     if (r) rows.push('<div class="pr dim">들어갈 때 덱 합: 공+' + r.atk + ' 체+' + r.hp + '</div>');
+    if (a.deck && f === a.floors[a.floors.length - 1]) rows.push('<div class="pr actend"><span class="k">' + a.n + '막을 마칠 때</span>체력 ' + a.deck.hp + '/' + a.deck.mhp + ' · 골드 ' + a.deck.gold + ' · 하수인 ' + a.deck.minions.length + '</div>');
     if (!f.items.length && !f.stats.length) rows.push('<div class="pr dim">기록 없음</div>');
     return h + rows.join('');
   }
