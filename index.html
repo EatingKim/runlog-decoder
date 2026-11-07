@@ -91,13 +91,28 @@ button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 .act-h { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--seam); padding-bottom: 6px; margin-bottom: 6px; }
 .act-h h2 { font-weight: 800; font-size: 1.4rem; margin: 0; }
 .act-h span { color: var(--dust); font-size: 0.85rem; }
-.floor { display: grid; grid-template-columns: 2.2em 5.2em minmax(0, 1fr); gap: 4px 12px; padding: 7px 0; border-bottom: 1px dashed var(--seam); }
-.floor:last-child { border-bottom: 0; }
-.fn { font-family: var(--f-display); color: var(--dust); text-align: right; font-variant-numeric: tabular-nums; }
-.room { font-weight: 600; font-size: 0.88rem; }
-.room small { display: block; font-weight: 400; color: var(--dust); font-size: 0.72rem; }
 .r1 { color: var(--g0); } .r2 { color: var(--elite); } .r3 { color: var(--boss); } .r4 { color: var(--camp); }
 .r5 { color: var(--g2); } .r6 { color: var(--cyan); } .r7 { color: var(--gold); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.8rem; color: var(--dust); align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .sw { width: 12px; height: 12px; display: inline-block; border: 1px solid currentColor; background: color-mix(in srgb, currentColor 22%, transparent); }
+.tiles { display: flex; flex-wrap: wrap; gap: 6px; }
+.tile { position: relative; width: 46px; height: 46px; padding: 0; border: 1px solid currentColor; border-radius: 3px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  background: color-mix(in srgb, currentColor 14%, var(--ground)); line-height: 1.05; }
+.tile b { font-size: 1rem; font-weight: 800; }
+.tile small { font-size: 0.66rem; color: var(--dust); }
+.tile .hp { position: absolute; right: 2px; bottom: 1px; font-style: normal; font-size: 0.58rem; color: var(--bad); }
+.tile:hover, .tile.on { background: color-mix(in srgb, currentColor 32%, var(--ground)); color: inherit; }
+.tile.on { outline: 2px solid var(--bone); outline-offset: 1px; }
+.tile.r0 { color: var(--dust); }
+.pop { position: fixed; z-index: 20; width: min(440px, calc(100vw - 24px)); box-sizing: border-box; background: var(--rock); border: 1px solid var(--seam);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.5); padding: 12px 14px; display: grid; gap: 4px; font-size: 0.86rem; }
+.pop-h { display: flex; align-items: baseline; gap: 10px; border-bottom: 1px solid var(--seam); padding-bottom: 6px; margin-bottom: 2px; }
+.pop-h b { font-weight: 800; font-size: 1rem; }
+.pop-h span { color: var(--dust); }
+.pr { overflow-wrap: anywhere; }
+.pr.skip span:not(.k):not(.sep) { color: var(--dust) !important; }
+.pr.stats { font-size: 0.78rem; color: var(--dust); }
 .items { display: grid; gap: 2px; min-width: 0; font-size: 0.88rem; }
 .it { overflow-wrap: anywhere; }
 .k { color: var(--dust); margin-right: 6px; }
@@ -1015,25 +1030,27 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       if (e.type === 'act') { ensureAct(e.act); act.deck = e.state; act = null; floor = null; continue; }
       if (e.type === 'end') { end = e; continue; }
       if (e.type === 'cut') { warn.push('기록이 여기서 끊깁니다. 마지막 쪽이 빠졌거나 런 도중의 기록일 수 있습니다.'); continue; }
-      if (e.type === 'stop') { warn.push(e.line + '번째 줄을 고치지 못해 그 앞까지만 보여줍니다. 왼쪽 줄 검사를 확인하세요.'); continue; }
+      if (e.type === 'stop') { warn.push(e.line + '번째 줄을 고치지 못해 그 앞까지만 보여줍니다. 코드 칸 아래 결과를 확인하세요.'); continue; }
       if (!floor) { ensureAct(act ? act.n : 1); floor = { e: null, items: [], stats: [] }; act.floors.push(floor); }
       if (e.type === 'stat') floor.stats.push(e); else if (e.type !== 'pick') floor.items.push(e);
     }
+    lastActs = acts;
     let h = '';
-    for (const a of acts) {
-      h += '<section class="act"><div class="act-h"><h2>' + a.n + '막</h2><span>' + a.floors.filter(f => f.e).length + '개 층</span></div>';
-      for (const f of a.floors) {
-        const r = f.e;
-        h += '<div class="floor"><div class="fn">' + (r ? r.floor : '') + '</div>' +
-          '<div class="room r' + (r ? r.room : 1) + '">' + (r ? D.ROOM[r.room] || r.room : '') + (r ? '<small>길 ' + (r.lane ? 'B' : 'A') + '</small>' : '') + '</div><div class="items">';
-        for (const e of f.items) h += '<div class="it">' + item(e) + '</div>';
-        if (f.stats.length) h += '<div class="it stats">덱 변화 ' + f.stats.map(s => s.t ? '칸' + s.slot + ' ' + esc((named && N.minion[s.t]) || '#' + s.t) + ' 체+' + s.hp + ' 공+' + s.atk + ' 방+' + s.arm + ' 주−' + s.cd : '칸' + s.slot + ' 빔').join(' · ') + '</div>';
-        if (!f.items.length && !f.stats.length) h += '<div class="it dim">기록 없음</div>';
-        h += '</div></div>';
-      }
+    if (acts.length) h += '<div class="legend">' + [1, 2, 3, 4, 5, 6, 7].map(t => '<span><i class="sw r' + t + '"></i>' + D.ROOM[t] + '</span>').join('') + '<span class="dim">네모에 마우스를 올리거나 누르면 그 층 내용이 나옵니다</span></div>';
+    acts.forEach((a, ai) => {
+      const rooms = a.floors.filter(f => f.e).length;
+      h += '<section class="act"><div class="act-h"><h2>' + a.n + '막</h2><span>' + rooms + '개 층</span></div><div class="tiles">';
+      a.floors.forEach((f, fi) => {
+        const r = f.e, t = r ? r.room : 0;
+        const nm0 = r ? (D.ROOM[t] || '방') : '기록';
+        const hurt = f.items.filter(x => x.type === 'battle').reduce((u, x) => u + x.lost, 0);
+        h += '<button type="button" class="tile r' + t + '" data-a="' + ai + '" data-f="' + fi + '" aria-label="' + a.n + '막 ' + (r ? r.floor + '층 ' : '') + nm0 + '">' +
+          '<b>' + nm0[0] + '</b><small class="num">' + (r ? r.floor : '·') + '</small>' + (hurt ? '<i class="hp num">−' + hurt + '</i>' : '') + '</button>';
+      });
+      h += '</div>';
       if (a.deck) h += deckBlock(a.n + '막을 마칠 때', a.deck);
       h += '</section>';
-    }
+    });
     if (end && end.state) {
       const extra = '<div class="end-list">' +
         '<div><span class="k">유물 ' + end.relics.length + '</span>' + (end.relics.map(v => nm('relic', v)).join(', ') || '<span class="dim">없음</span>') + '</div>' +
@@ -1070,6 +1087,69 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   }
 
   /* 코드 확인 결과: 코드 칸 아래에 한 줄 요약 + 문제 있는 줄만 */
+  /* 층 팝업 내용 */
+  let lastActs = [];
+  function floorDetail(a, f) {
+    const r = f.e;
+    let h = '<div class="pop-h"><b class="r' + (r ? r.room : 1) + '">' + (r ? D.ROOM[r.room] : '기록') + '</b>' +
+      '<span>' + a.n + '막' + (r ? ' ' + r.floor + '층 · 길 ' + (r.lane ? 'B' : 'A') : '') + '</span></div>';
+    const rows = [];
+    for (const e of f.items) {
+      if (e.type === 'offer') {
+        const t = e.kind ? 'minion' : 'module', label = e.kind ? '하수인 보상' : '모듈 보상';
+        const got = e.picked !== undefined ? nm(t, e.ids[e.picked]) : '<span class="dim">안 고름</span>';
+        const skip = e.ids.filter((v, i) => i !== e.picked).map(v => nm(t, v));
+        rows.push('<div class="pr"><span class="k">' + label + '</span>' + got + '</div>');
+        if (skip.length) rows.push('<div class="pr skip"><span class="k">건너뜀</span>' + skip.join('<span class="sep"> / </span>') + '</div>');
+      } else {
+        const x = item(e);
+        if (x) rows.push('<div class="pr">' + x + '</div>');
+      }
+    }
+    if (f.stats.length) rows.push('<div class="pr stats"><span class="k">덱 변화</span>' + f.stats.map(s => s.t ? '칸' + s.slot + ' ' + esc((named && N.minion[s.t]) || '#' + s.t) + ' 체+' + s.hp + ' 공+' + s.atk + ' 방+' + s.arm + ' 주−' + s.cd : '칸' + s.slot + ' 빔').join(' · ') + '</div>');
+    if (r) rows.push('<div class="pr dim">들어갈 때 덱 합: 공+' + r.atk + ' 체+' + r.hp + '</div>');
+    if (!f.items.length && !f.stats.length) rows.push('<div class="pr dim">기록 없음</div>');
+    return h + rows.join('');
+  }
+  const pop = document.createElement('div');
+  pop.className = 'pop';
+  pop.setAttribute('role', 'tooltip');
+  pop.hidden = true;
+  document.body.appendChild(pop);
+  let popFor = null, popPinned = false;
+  function showPop(tile, pin) {
+    const a = lastActs[+tile.dataset.a], f = a && a.floors[+tile.dataset.f];
+    if (!f) return;
+    pop.innerHTML = floorDetail(a, f);
+    pop.hidden = false;
+    popFor = tile;
+    popPinned = !!pin;
+    document.querySelectorAll('.tile.on').forEach(t => t.classList.remove('on'));
+    tile.classList.add('on');
+    const r = tile.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight, vw = document.documentElement.clientWidth, vh = innerHeight, m = 12;
+    let x = r.left, y = r.bottom + 8;
+    if (x + pw > vw - m) x = vw - m - pw;
+    if (x < m) x = m;
+    if (y + ph > vh - m && r.top - 8 - ph > m) y = r.top - 8 - ph;
+    pop.style.left = x + 'px';
+    pop.style.top = y + 'px';
+  }
+  function hidePop() { pop.hidden = true; popFor = null; popPinned = false; document.querySelectorAll('.tile.on').forEach(t => t.classList.remove('on')); }
+  const mapEl = $('map');
+  mapEl.addEventListener('mouseover', e => { const t = e.target.closest('.tile'); if (t && !popPinned) showPop(t); });
+  mapEl.addEventListener('mouseout', e => { const t = e.target.closest('.tile'); if (t && !popPinned && !t.contains(e.relatedTarget)) hidePop(); });
+  mapEl.addEventListener('focusin', e => { const t = e.target.closest('.tile'); if (t) showPop(t); });
+  mapEl.addEventListener('focusout', e => { if (e.target.closest('.tile') && !popPinned) hidePop(); });
+  mapEl.addEventListener('click', e => {
+    const t = e.target.closest('.tile');
+    if (!t) return;
+    if (popPinned && popFor === t) hidePop(); else showPop(t, true);
+    e.stopPropagation();
+  });
+  document.addEventListener('click', e => { if (popPinned && !pop.contains(e.target)) hidePop(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hidePop(); });
+  addEventListener('scroll', () => { if (!pop.hidden) { if (popPinned && popFor) showPop(popFor, true); else hidePop(); } }, { passive: true });
+
   function renderCheck(lines) {
     const st = $('code-st');
     if (!lines.length) { st.innerHTML = '<span class="bad">코드 줄을 찾지 못했습니다. 72글자 줄과 끝의 확인 글자가 함께 들어 있는지 확인하세요.</span>'; return; }
