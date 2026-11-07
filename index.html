@@ -7,109 +7,155 @@
 <title>런 기록 해독기</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbit&family=Gothic+A1:wght@400;600;800&family=Nanum+Gothic+Coding:wght@400;700&display=swap">
 <style>
-/* 레이아웃: 왼쪽 = 붙여넣기와 줄 검사, 오른쪽 = 해독 결과. 좁으면 한 줄로 쌓음.
-   코드 줄은 게임 기록 화면처럼 8글자마다 흰색·노란색, 확인 글자는 파랑 */
+/* 레이아웃: 위에 런 요약(시드가 제목), 왼쪽 좁은 칸 = 기록 코드 붙여넣기와 줄 검사,
+   오른쪽 = 막·층을 따라 올라가는 런 지도. 좁은 화면에서는 위아래로 쌓음.
+   한 가지 세계로 고정한 어두운 화면: 공허 동굴 바탕 + 게임 안 글자색(하급 흰·중급 파랑·상급 노랑·하자 붉은 보라·이벤트 청록) */
 :root {
-  --bg: #f3f4f7; --panel: #ffffff; --fg: #1b1f2a; --muted: #5d6475; --line: #d9dde6;
-  --accent: #2f5bd3; --gold: #9a6a00; --ok: #227a4a; --warn: #a15c00; --bad: #b3261e;
-  --ok-bg: #e3f3ea; --warn-bg: #fdf0db; --bad-bg: #fbe5e3; --code-bg: #161a24; --code-a: #e9ecf3; --code-b: #f2c94c; --code-c: #7fa8ff;
-  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --f-mono: "JetBrains Mono", "D2Coding", Consolas, monospace;
+  color-scheme: dark;
+  --ground: #131118; --rock: #1b1822; --seam: #2c2836; --dust: #8a8497; --bone: #ddd8e6;
+  --void: #a48bff;
+  --g0: #ece9f2; --g1: #6ea6ff; --g2: #f2d14b; --g3: #d65a86; --cyan: #5fd3cc;
+  --elite: #ff9150; --boss: #ff5d5d; --camp: #ffb24d; --gold: #e3b04b; --ok: #79d39a; --warn: #f2b55c; --bad: #ff7b72;
+  --f-display: "Orbit", "Gothic A1", sans-serif;
+  --f-body: "Gothic A1", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-mono: "Nanum Gothic Coding", "D2Coding", Consolas, monospace;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #11141b; --panel: #191d27; --fg: #e6e8ee; --muted: #9aa1b2; --line: #2b3140;
-  --accent: #86a6ff; --gold: #f2c94c; --ok: #6fd39b; --warn: #f2b55c; --bad: #ff8a80;
-  --ok-bg: #173325; --warn-bg: #3a2a12; --bad-bg: #3d1a18; --code-bg: #0b0d12; color-scheme: dark } }
-:root[data-theme="dark"] {
-  --bg: #11141b; --panel: #191d27; --fg: #e6e8ee; --muted: #9aa1b2; --line: #2b3140;
-  --accent: #86a6ff; --gold: #f2c94c; --ok: #6fd39b; --warn: #f2b55c; --bad: #ff8a80;
-  --ok-bg: #173325; --warn-bg: #3a2a12; --bad-bg: #3d1a18; --code-bg: #0b0d12; color-scheme: dark }
-body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.55; }
-pre, textarea, .code, .demo { font-variant-ligatures: none; }
-.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 48px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 20px; }
-header { display: grid; gap: 6px; }
-h1 { margin: 0; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
-.sub { margin: 0; color: var(--muted); }
-.demo { font-family: var(--f-mono); font-size: 0.8rem; background: var(--code-bg); border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
-.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 2px; color: var(--muted); max-width: 70ch; }
-.steps b { color: var(--fg); font-weight: 600; }
-.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
-@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
-section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
-.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: space-between; }
-h2 { margin: 0; font-size: 0.8rem; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
-.btns { display: flex; flex-wrap: wrap; gap: 6px; }
-button { font: inherit; font-size: 0.85rem; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
-button:hover { border-color: var(--accent); color: var(--accent); }
-button.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
-button.primary:hover { filter: brightness(1.1); color: var(--panel); }
-button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-textarea { width: 100%; box-sizing: border-box; min-height: 220px; resize: vertical; font-family: var(--f-mono); font-size: 0.78rem; line-height: 1.6;
-  background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
-.note-ex { font-size: 0.8rem; color: var(--warn); margin: 0; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font-size: 0.78rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--bg); color: var(--muted); font-variant-numeric: tabular-nums; }
-.chip.ok { background: var(--ok-bg); color: var(--ok); } .chip.fixed { background: var(--ok-bg); color: var(--ok); }
-.chip.guess { background: var(--warn-bg); color: var(--warn); } .chip.bad { background: var(--bad-bg); color: var(--bad); }
-ol.lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 340px; overflow-y: auto; }
-ol.lines li { display: grid; grid-template-columns: 3.2em auto minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 0.82rem; }
-ol.lines .n { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
-ol.lines .msg { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
-.code { font-family: var(--f-mono); background: var(--code-bg); border-radius: 4px; padding: 1px 6px; }
-.g0 { color: var(--code-a); } .g1 { color: var(--code-b); } .ck { color: var(--code-c); }
-pre.out { margin: 0; background: var(--code-bg); color: var(--code-a); border-radius: 8px; padding: 14px; font-family: var(--f-mono); font-size: 0.8rem; line-height: 1.65;
-  overflow: auto; max-height: 72vh; white-space: pre; tab-size: 4; }
-pre.out .h { color: var(--code-b); font-weight: 600; } pre.out .p { color: #7f8799; } pre.out .e { color: #ff8a80; }
-.toast { font-size: 0.8rem; color: var(--ok); min-height: 1.2em; }
-.empty { color: var(--muted); font-size: 0.85rem; margin: 0; }
+html, body { background: var(--ground); }
+body { color: var(--bone); font-family: var(--f-body); font-size: 15px; line-height: 1.6; }
+pre, textarea, .mono { font-variant-ligatures: none; }
+.wrap { max-width: 1280px; margin: 0 auto; padding-block: 20px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* 머리 */
+.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px;
+  border-bottom: 1px solid var(--seam); padding-bottom: 10px; }
+.brand { font-weight: 600; font-size: 0.92rem; color: var(--dust); }
+.brand b { color: var(--bone); font-weight: 800; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: inherit; font-size: 0.85rem; color: var(--bone); background: transparent; border: 1px solid var(--seam);
+  border-radius: 2px; padding: 5px 12px; cursor: pointer; }
+button:hover { border-color: var(--void); color: var(--void); }
+button.main { border-color: var(--void); color: var(--void); }
+button.main:hover { background: var(--void); color: var(--ground); }
+button:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--void); outline-offset: 2px; }
+.toast { font-size: 0.8rem; color: var(--ok); min-height: 1.3em; text-align: right; }
+
+/* 런 요약 */
+.hero { padding-block: 22px 18px; display: grid; gap: 6px; }
+.seed { font-family: var(--f-display); font-size: clamp(2rem, 6vw, 3.4rem); line-height: 1.05; letter-spacing: 0.02em; margin: 0; }
+.seed small { font-family: var(--f-body); font-weight: 600; font-size: 0.34em; color: var(--dust); margin-right: 0.6em; vertical-align: middle; }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 0; padding: 0; list-style: none; color: var(--dust); font-size: 0.9rem; }
+.facts b { color: var(--bone); font-weight: 600; font-variant-numeric: tabular-nums; }
+.facts .lose b { color: var(--boss); } .facts .win b { color: var(--g2); }
+.example { color: var(--warn); font-size: 0.82rem; margin: 0; }
+
+/* 본문 */
+.cols { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.label { font-weight: 800; font-size: 0.78rem; letter-spacing: 0.04em; color: var(--dust); margin: 0 0 8px; }
+aside { display: grid; gap: 16px; min-width: 0; }
+textarea { width: 100%; box-sizing: border-box; min-height: 180px; resize: vertical; background: var(--rock); color: var(--bone);
+  border: 1px solid var(--seam); border-radius: 2px; padding: 10px; font-family: var(--f-mono); font-size: 0.8rem; line-height: 1.6; }
+.howto { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 0.82rem; color: var(--dust); }
+.howto li::before { content: "› "; color: var(--void); }
+.check { display: grid; gap: 3px; max-height: 360px; overflow: auto; }
+.cl { display: grid; grid-template-columns: 2.4em minmax(0, 1fr); gap: 8px; font-size: 0.78rem; align-items: baseline; }
+.cl .n { color: var(--dust); text-align: right; font-variant-numeric: tabular-nums; }
+.cl .code { font-family: var(--f-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl .code .a { color: var(--g0); } .cl .code .b { color: var(--g2); } .cl .code .k { color: var(--g1); }
+.cl .why { grid-column: 2; color: var(--dust); overflow-wrap: anywhere; }
+.cl.fixed .n { color: var(--ok); } .cl.guess .n, .cl.guess .why { color: var(--warn); } .cl.bad .n, .cl.bad .why { color: var(--bad); }
+.tally { font-size: 0.8rem; color: var(--dust); }
+.tally span + span::before { content: " · "; }
+
+/* 런 지도 */
+.map { min-width: 0; display: grid; gap: 28px; }
+.act { display: grid; gap: 2px; }
+.act-h { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--seam); padding-bottom: 6px; margin-bottom: 6px; }
+.act-h h2 { font-weight: 800; font-size: 1.4rem; margin: 0; }
+.act-h span { color: var(--dust); font-size: 0.85rem; }
+.floor { display: grid; grid-template-columns: 2.2em 5.2em minmax(0, 1fr); gap: 4px 12px; padding: 7px 0; border-bottom: 1px dashed var(--seam); }
+.floor:last-child { border-bottom: 0; }
+.fn { font-family: var(--f-display); color: var(--dust); text-align: right; font-variant-numeric: tabular-nums; }
+.room { font-weight: 600; font-size: 0.88rem; }
+.room small { display: block; font-weight: 400; color: var(--dust); font-size: 0.72rem; }
+.r1 { color: var(--g0); } .r2 { color: var(--elite); } .r3 { color: var(--boss); } .r4 { color: var(--camp); }
+.r5 { color: var(--g2); } .r6 { color: var(--cyan); } .r7 { color: var(--gold); }
+.items { display: grid; gap: 2px; min-width: 0; font-size: 0.88rem; }
+.it { overflow-wrap: anywhere; }
+.k { color: var(--dust); margin-right: 6px; }
+.dim { color: var(--dust); }
+.num { font-variant-numeric: tabular-nums; }
+.hurt { color: var(--bad); }
+.n0 { color: var(--g0); } .n1 { color: var(--g1); } .n2 { color: var(--g2); } .n3 { color: var(--g3); }
+.ev { color: var(--cyan); } .gold { color: var(--gold); } .curse { color: var(--g3); }
+.offer .sep { color: var(--seam); }
+.offer .opt.on { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--void); }
+.offer .opt:not(.on) span { color: var(--dust) !important; }
+.stats { font-family: var(--f-mono); font-size: 0.76rem; color: var(--dust); }
+
+/* 막 끝·런 끝 덱 */
+.deck { margin-top: 10px; background: var(--rock); border: 1px solid var(--seam); padding: 12px 14px; display: grid; gap: 8px; }
+.deck-h { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 0.85rem; color: var(--dust); }
+.deck-h b { color: var(--bone); font-weight: 600; }
+.deck-h .ttl { font-weight: 800; color: var(--bone); }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+th.num { text-align: right; }
+th { text-align: left; font-weight: 400; color: var(--dust); font-size: 0.72rem; letter-spacing: 0.06em; padding: 2px 10px 4px 0; white-space: nowrap; }
+td { padding: 3px 10px 3px 0; vertical-align: top; border-top: 1px solid var(--seam); }
+td.num { text-align: right; white-space: nowrap; }
+td.mods { min-width: 16em; }
+.end-list { font-size: 0.85rem; display: grid; gap: 2px; }
+.warn-row { color: var(--warn); font-size: 0.85rem; padding: 8px 0; }
+
+details.raw summary { cursor: pointer; color: var(--dust); font-size: 0.85rem; }
+details.raw pre { background: var(--rock); border: 1px solid var(--seam); padding: 12px; font-family: var(--f-mono); font-size: 0.76rem;
+  line-height: 1.6; overflow: auto; max-height: 60vh; color: var(--bone); }
+.empty { color: var(--dust); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 
 <div class="wrap">
-  <header>
-    <h1>상실의 동굴 런 기록 해독기</h1>
-    <p class="sub">게임 오버 화면의 기록 코드를 읽을 수 있는 글로 바꿉니다. 모두 이 브라우저 안에서 처리되고 어디로도 보내지 않습니다.</p>
-    <div class="demo" aria-label="기록 화면 한 줄 모양"><span class="g0">QBNTM452</span><span class="g1">2222AYL2</span><span class="g0">222222B2</span><span class="g1">6JJUEQJ7</span><span class="g0">…</span> <span class="ck">S</span></div>
-    <ol class="steps">
-      <li><b>기록 보기 화면을 찍습니다.</b> 쪽이 여러 개면 쪽마다 찍습니다.</li>
-      <li><b>구글 렌즈로 글자를 복사합니다.</b> 쪽 순서대로 아래 칸에 이어 붙이면 됩니다. 쪽 제목 줄은 알아서 건너뜁니다.</li>
-      <li><b>해독 결과를 복사해서 AI에 붙여넣습니다.</b> 사진보다 토큰이 훨씬 적게 듭니다.</li>
-    </ol>
-  </header>
+  <div class="top">
+    <div class="brand">상실의 동굴 · <b>런 기록 해독기</b></div>
+    <div class="tools">
+      <button type="button" id="btn-sample">예시 넣기</button>
+      <button type="button" id="btn-clear">지우기</button>
+      <button type="button" class="main" id="btn-copy">AI용 글 복사</button>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
 
-  <div class="grid">
-    <section aria-labelledby="h-in">
-      <div class="bar">
-        <h2 id="h-in">붙여넣기</h2>
-        <div class="btns">
-          <button type="button" id="btn-sample">예시 넣기</button>
-          <button type="button" id="btn-clear">지우기</button>
-        </div>
-      </div>
-      <textarea id="src" spellcheck="false" autocomplete="off" aria-label="기록 코드"></textarea>
-      <p class="note-ex" id="ex-note">지금 들어 있는 글은 시험용 예시입니다. 둘째 줄의 한 글자를 일부러 0으로 바꿔 두어 복원되는 모습을 보여줍니다.</p>
-      <div class="bar"><h2>줄 검사</h2><div class="chips" id="sum"></div></div>
-      <ol class="lines" id="lines"></ol>
-    </section>
+  <div class="hero" id="hero"></div>
 
-    <section aria-labelledby="h-out">
-      <div class="bar">
-        <h2 id="h-out">해독 결과</h2>
-        <div class="btns"><button type="button" class="primary" id="btn-copy">결과 복사</button></div>
+  <div class="cols">
+    <aside>
+      <div>
+        <p class="label">기록 코드</p>
+        <textarea id="src" spellcheck="false" autocomplete="off" aria-label="기록 코드"></textarea>
       </div>
-      <div class="toast" id="toast" role="status"></div>
-      <pre class="out" id="out" tabindex="0"></pre>
-    </section>
+      <ul class="howto">
+        <li>게임 오버의 기록 보기 화면을 쪽마다 찍습니다.</li>
+        <li>구글 렌즈로 글자를 복사해 쪽 순서대로 붙입니다. 쪽 제목 줄은 건너뜁니다.</li>
+        <li>지도를 보거나, AI용 글 복사로 AI에 넘깁니다. 처리는 이 브라우저 안에서만 합니다.</li>
+      </ul>
+      <div>
+        <p class="label">줄 검사 <span class="tally" id="tally"></span></p>
+        <div class="check" id="check"></div>
+      </div>
+    </aside>
+
+    <main class="map" id="map"></main>
   </div>
 </div>
 
 <script>
-const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사격", "피의 맹세", "출혈 사격", "피의 방벽", "튼튼한 육체", "빠른 회복", "긴급 충전", "방벽 보충", "투창 연습", "끈기있는 수련", "빠른 재장전", "인내하기", "약점 극복", "돌격 나팔", "웅크리기", "독 묻히기", "내구성 훈련", "튕겨내기", "아드레날린", "기선 제압", "실전 경험", "방어진 구축", "견제 사격", "환영 다루기", "다중 타격", "달아오른 총열", "피의 갈증", "약물 과용", "혈마법", "수류탄 투척", "총기 정비", "영원한 순환", "고난도 수련", "무기 연마", "체질 개선", "끈기", "기동력 극대화", "거대화", "하나의 목표", "부식 장갑", "수비 훈련", "필사의 저항", "내성 키우기", "피를 깎는 노력", "전투의 열기", "넘치는 생명력", "약점 찌르기", "지키는 힘", "몰아치기", "고통의 단말마", "산성 펀치", "방패 들기", "역돌진", "숨 고르기", "힘 빼기", "칼날 발사", "탄막 가열", "절대방벽", "버티기 자세", "강철 피부", "응급 처치", "임기응변", "고통의 장막", "폭풍 연타", "산화", "끝없는 성장", "부식 독", "총공격 개시", "섬광 사격", "전투 격려", "모두를 위하여", "산성 포화", "결전 태세", "연쇄 반응", "고통 분담", "번지는 부식", "독 적응", "단련된 손놀림", "수호의 깃발", "포격 지원", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "불붙은 무기", "", "", "", "", "", "", "불씨 뿌리기", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "무딘 칼날", "헐거운 나사", "과열된 엔진", "피 묻은 갑주", "새는 독병", "뒤틀린 탄창", "금 간 영혼석", "찢어진 지갑", "저주받은 수의", "금 간 마나 수정", "녹아내린 촛대", "그을린 점화기", "새는 물통", "무거운 배낭", "금 간 보호구", "깨진 등불", "녹슨 족쇄", "", "", "", "분사", "공허", "포효"], "minion": ["", "마린모델", "질럿모델", "파뱃모델", "히드라모델", "저글링모델", "드론모델", "매딕모델", "울트라모델", "고스트모델(여)", "벌처모델", "스커지모델", "가디언모델", "뮤탈모델", "레이스모델", "닥템모델", "퀸모델", "감염된모델", "토끼인형", "토끼왕", "부랑자", "탐험가", "새끼 화염새", "화염새", "템플러모델", "다크아칸모델", "드라군모델", "고스트모델(남)", "리버모델", "럴커모델", "아칸모델", "배틀모델", "발키리모델", "아비터모델"], "relic": ["", "금화주머니", "지구본", "석탄", "황금바", "깨진도자기", "죽통주", "계획서", "낡은방패", "육포조각", "숫돌", "모이주머니", "비타민", "액받이부적", "뱀문양동전", "동물의 뼈", "위자보드", "검은피리", "미지의씨앗", "수정구", "물약주머니", "약사의장갑", "모래시계", "행운목걸이", "나무방패", "작은새총", "붕대", "재활용기", "찻잔세트", "청룡의비늘", "레드카펫", "유충알", "부속품", "흰색봉투", "깨진앙크", "암모나이트", "성수", "공략집", "방탄복", "요강단지", "티타늄봉", "굴렁쇠", "뼛가루", "로프뭉치", "할인권", "공허주머니", "철퇴", "작은보온병", "봉인장치", "확성기", "담뱃대", "훈련도구", "장난감말", "신성의검", "도시락박스", "괴종시계", "교정기", "작은가면", "나침반", "휴대용화분", "장검", "묵패", "반죽기", "주춧돌", "등대모형", "투명반지", "승전기", "구급상자", "황금상자", "보물지도", "죽은가지", "영혼석", "농축기", "태엽장치", "복시", "태양석판", "공무공", "야영도구", "곰인형", "돋보기", "수호비석", "가속의인장", "추출기", "밍크코트", "가득찬벨트", "망원경", "축복받은잔", "토끼의호의", "토끼머리뼈", "제단의 파편", "토끼왕의 호의", "유실물가방", "정화된 축복받은잔", "타락한 축복받은잔", "기괴한가면", "탐험가의 문장", "인형의 혼", "어둠을 삼키는 횃불", "완성된 제단석", "단련의 증표", "고치뭉치", "광학렌즈", "거머리", "독구슬", "등불", "반응성물약", "보급장비", "악마의가면", "산성이빨", "황금토템", "방화복", "혈액팩", "수호인형", "충전기", "유화그림", "보조키", "문어뱃지", "폭약", "점화석", "기계부품", "수맥탐지봉", "피의망토", "소환석", "행운의부적", "잡동사니가방", "약국회원증", "뱀술", "광학장치", "부메랑", "붉은실", "불타는인형", "자물쇠", "보존용도구", "호르몬제", "골렘석", "유대감벨트", "영혼의반지", "점액질"], "potion": ["", "화염 물약", "힘의 물약", "철의 심장", "재생 혈청", "병 속의 칼날", "폭발 물약", "수호의 축복", "전투의 서막", "거인의 피", "방어물약", "산성물약", "번식물약", "활력물약", "속사물약", "추적물약", "화염물약(대)", "회복물약", "수용물약", "만능물약", "붕괴물약", "혼돈물약", "불사물약", "절멸물약", "달콤물약", "확장물약", "발작물약", "환수물약", "환영물약", "탐욕물약", "메아리물약", "공허물약", "녹슨 쇳가루", "약화 물약", "병 속의 허상", "액체 방벽", "수비물약", "좀비물약", "증진제", "윤활제", "증폭제", "결속제", "소생물약", "태엽물약", "봉인물약", "용해물약", "이식물약"], "curse": ["", "두려움", "기만", "무력함", "죄책감", "과대망상", "공허함", "혼란함", "비현실성", "부주의", "공허의 바다"], "event": ["", "축복의 성당", "의심스러운 제단", "이상한 얼굴의 벽", "불타는 몬스터", "유랑상인", "지친 탐험가 무리", "어둠을 삼키는 자의 거래", "지친 토끼", "폐허의 제단", "강력한 적", "길드의 의뢰서", "수상한 약사", "토끼왕", "토끼왕", "토끼왕", "이상한 공간", "지혜로운 자", "버려진 가방", "어둠을 삼키는 자", "저주받은 부랑자", "일렁거리는 포탈", "인형사의 작업대", "싸우고 있는 탐험가 무리", "싸우고 있는 탐험가 무리", "복수하러 온 탐험가 무리", "끝없는 어둠", "끓어 넘치는 솥", "고요한 거울 웅덩이", "맥박치는 알 둥지", "쓰러져 꾼 꿈", "가면무도회", "탐험대의 마지막 야영지", "어둠에 물든 성당", "공허의 잠식", "공허 숭배 집회", "부서진 모듈 더미", "인형들의 무덤", "어둠을 삼키는 자의 최후", "떠돌이 대장장이", "예언의 제단", "떠돌이 수선공", "정화의 샘", "갈라지는 고치 무더기"], "encounter": ["새끼거미×8", "시체먹이×3 + 새끼거미×2", "시체먹이 + 고블린×3", "어둑곰 + 고블린×2", "돌거북 + 땅두더지×2", "독전갈×2 + 고블린×4", "어둑곰×4 + 독전갈×2", "땅두더지×3", "새끼거미×12 + 독전갈×3", "시체먹이×12 + 고블린×6", "악성좀비×3 + 시체더미×0", "여왕거미 + 새끼거미×6", "거대어둑곰 + 고블린×3", "망토고블린", "어둑술사 + 악성좀비×3 + 시체더미×0", "땅굴군주", "거대박쥐×4", "화살함정×2 + 악의×4", "거대박쥐×2 + 악의×4", "거대박쥐×3 + 악의×2", "털보거인×2 + 악의×3", "타락사제 + 불의전사×3", "거미줄직공×2 + 생존자 + 거미고치×0", "털보거인 + 타락사제 + 화살함정×2 + 악의×2", "거미줄직공 + 털보거인 + 거대박쥐×2 + 거미고치×0", "타락사제×2 + 거대박쥐×3", "살점먹이 + 시체먹이×6", "탐험대장 + 탐험가×3", "악의×4 + 멸살자", "고독한자", "흡수자 + 악의×0", "불의군주", "공허거미×3", "공허포격기×2", "어둠에삼켜진자×2", "공허방랑자×2", "공허먹이", "공허거인", "공허거미×2 + 악의", "털보거인 + 공허포격기 + 화살함정", "공허거미 + 공허방랑자 + 거대박쥐", "생존자 + 공허포격기 + 거대박쥐", "공허먹이 + 악의×2", "공허방랑자 + 화살함정×2 + 악의", "공허거인 + 공허방랑자", "공허먹이 + 공허거미 + 악의", "어둠에삼켜진자 + 공허포격기 + 악의×2", "공허거인 + 공허포격기", "공허거인 + 공허거미", "공허방랑자×2 + 공허거미", "고대의장치 + 공허거미×0 + 공허방랑자×0 + 공허포격기×0 + 공허먹이×0", "가면수집가", "변이어둑곰", "공허의태양", "공허의달", "고대의전사", "악성좀비×2 + 시체더미×0 + 여왕거미 + 새끼거미×3", "악성좀비×2 + 시체더미×0 + 거대어둑곰 + 고블린×2", "여왕거미 + 새끼거미×3 + 거대어둑곰 + 고블린×2", "탐험가×4", "이상한얼굴의벽 + 시체먹이×0", "약사×2", "약사×3", "약사×4", "토끼왕", "화난토끼왕", "어둠을삼키는자", "부랑자", "일렁거리는포탈 + 거대박쥐×0 + 화살함정×0 + 불의전사×0", "살점먹이 + 탐험대장 + 시체먹이×0 + 탐험가×0", "탐험대장 + 탐험가×0", "시체먹이×0", "공허의조각 + 뭉쳐진공허×0", "공허의왕 + 어두운기둥×0 + 공허의파편×0", "공허의태양 + 공허의달", "거대박쥐 + 화살함정 + 생존자 + 털보거인 + 악의", "고대의장치 + 시체더미 + 일렁거리는포탈 + 뭉쳐진공허 + 어두운기둥", "불도마뱀×3 + 시체먹이×3", "어둑곰 + 시체먹이×2 + 고블린×4", "어둑곰×2 + 불도마뱀×2", "어둑곰 + 불도마뱀 + 새끼거미×4", "돌거북 + 독전갈×2", "돌거북×2 + 고블린×3", "고블린족장 + 고블린×4", "불도마뱀×2 + 돌거북×2", "불의전사×2 + 악의×3", "생존자×2 + 화살함정×3", "포자벌레×3 + 거대박쥐", "불의전사 + 생존자 + 포자벌레 + 악의", "포자벌레×2 + 타락사제 + 거미줄직공×2 + 거미고치×0", "사냥곰 + 덫사냥꾼", "공허거미×3 + 악의×3", "공허분열체×2 + 작은분열체×0 + 공허거미 + 악의", "공허방랑자×3 + 거대박쥐×3 + 악의", "공허거미×2 + 공허분열체 + 작은분열체×0 + 화살함정 + 악의", "공허포격기×2 + 공허거미×2 + 악의×4", "망각의사도 + 공허거미×3 + 악의×4", "망각의사도 + 공허분열체×3 + 작은분열체×0", "공허포격기 + 공허방랑자×2 + 공허분열체 + 작은분열체×0 + 악의×3", "공허거인 + 공허방랑자×3 + 악의×3", "공허먹이×2 + 공허거미×3 + 악의×2", "어둠에삼켜진자×3 + 공허포격기×2 + 악의×2", "공허거인 + 공허포격기×3 + 공허거미", "공허먹이×2 + 망각의사도×2 + 공허분열체 + 작은분열체×0 + 악의×2", "어둠에삼켜진자 + 공허거인 + 공허거미×2 + 망각의사도", "기억도둑 + 공허방랑자×2 + 악의×0", "시체먹이×2"]};
+const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사격", "피의 맹세", "출혈 사격", "피의 방벽", "튼튼한 육체", "빠른 회복", "긴급 충전", "방벽 보충", "투창 연습", "끈기있는 수련", "빠른 재장전", "인내하기", "약점 극복", "돌격 나팔", "웅크리기", "독 묻히기", "내구성 훈련", "튕겨내기", "아드레날린", "기선 제압", "실전 경험", "방어진 구축", "견제 사격", "환영 다루기", "다중 타격", "달아오른 총열", "피의 갈증", "약물 과용", "혈마법", "수류탄 투척", "총기 정비", "영원한 순환", "고난도 수련", "무기 연마", "체질 개선", "끈기", "기동력 극대화", "거대화", "하나의 목표", "부식 장갑", "수비 훈련", "필사의 저항", "내성 키우기", "피를 깎는 노력", "전투의 열기", "넘치는 생명력", "약점 찌르기", "지키는 힘", "몰아치기", "고통의 단말마", "산성 펀치", "방패 들기", "역돌진", "숨 고르기", "힘 빼기", "칼날 발사", "탄막 가열", "절대방벽", "버티기 자세", "강철 피부", "응급 처치", "임기응변", "고통의 장막", "폭풍 연타", "산화", "끝없는 성장", "부식 독", "총공격 개시", "섬광 사격", "전투 격려", "모두를 위하여", "산성 포화", "결전 태세", "연쇄 반응", "고통 분담", "번지는 부식", "독 적응", "단련된 손놀림", "수호의 깃발", "포격 지원", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "불붙은 무기", "", "", "", "", "", "", "불씨 뿌리기", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "무딘 칼날", "헐거운 나사", "과열된 엔진", "피 묻은 갑주", "새는 독병", "뒤틀린 탄창", "금 간 영혼석", "찢어진 지갑", "저주받은 수의", "금 간 마나 수정", "녹아내린 촛대", "그을린 점화기", "새는 물통", "무거운 배낭", "금 간 보호구", "깨진 등불", "녹슨 족쇄", "", "", "", "분사", "공허", "포효"], "minion": ["", "마린모델", "질럿모델", "파뱃모델", "히드라모델", "저글링모델", "드론모델", "매딕모델", "울트라모델", "고스트모델(여)", "벌처모델", "스커지모델", "가디언모델", "뮤탈모델", "레이스모델", "닥템모델", "퀸모델", "감염된모델", "토끼인형", "토끼왕", "부랑자", "탐험가", "새끼 화염새", "화염새", "템플러모델", "다크아칸모델", "드라군모델", "고스트모델(남)", "리버모델", "럴커모델", "아칸모델", "배틀모델", "발키리모델", "아비터모델"], "relic": ["", "금화주머니", "지구본", "석탄", "황금바", "깨진도자기", "죽통주", "계획서", "낡은방패", "육포조각", "숫돌", "모이주머니", "비타민", "액받이부적", "뱀문양동전", "동물의 뼈", "위자보드", "검은피리", "미지의씨앗", "수정구", "물약주머니", "약사의장갑", "모래시계", "행운목걸이", "나무방패", "작은새총", "붕대", "재활용기", "찻잔세트", "청룡의비늘", "레드카펫", "유충알", "부속품", "흰색봉투", "깨진앙크", "암모나이트", "성수", "공략집", "방탄복", "요강단지", "티타늄봉", "굴렁쇠", "뼛가루", "로프뭉치", "할인권", "공허주머니", "철퇴", "작은보온병", "봉인장치", "확성기", "담뱃대", "훈련도구", "장난감말", "신성의검", "도시락박스", "괴종시계", "교정기", "작은가면", "나침반", "휴대용화분", "장검", "묵패", "반죽기", "주춧돌", "등대모형", "투명반지", "승전기", "구급상자", "황금상자", "보물지도", "죽은가지", "영혼석", "농축기", "태엽장치", "복시", "태양석판", "공무공", "야영도구", "곰인형", "돋보기", "수호비석", "가속의인장", "추출기", "밍크코트", "가득찬벨트", "망원경", "축복받은잔", "토끼의호의", "토끼머리뼈", "제단의 파편", "토끼왕의 호의", "유실물가방", "정화된 축복받은잔", "타락한 축복받은잔", "기괴한가면", "탐험가의 문장", "인형의 혼", "어둠을 삼키는 횃불", "완성된 제단석", "단련의 증표", "고치뭉치", "광학렌즈", "거머리", "독구슬", "등불", "반응성물약", "보급장비", "악마의가면", "산성이빨", "황금토템", "방화복", "혈액팩", "수호인형", "충전기", "유화그림", "보조키", "문어뱃지", "폭약", "점화석", "기계부품", "수맥탐지봉", "피의망토", "소환석", "행운의부적", "잡동사니가방", "약국회원증", "뱀술", "광학장치", "부메랑", "붉은실", "불타는인형", "자물쇠", "보존용도구", "호르몬제", "골렘석", "유대감벨트", "영혼의반지", "점액질"], "potion": ["", "화염 물약", "힘의 물약", "철의 심장", "재생 혈청", "병 속의 칼날", "폭발 물약", "수호의 축복", "전투의 서막", "거인의 피", "방어물약", "산성물약", "번식물약", "활력물약", "속사물약", "추적물약", "화염물약(대)", "회복물약", "수용물약", "만능물약", "붕괴물약", "혼돈물약", "불사물약", "절멸물약", "달콤물약", "확장물약", "발작물약", "환수물약", "환영물약", "탐욕물약", "메아리물약", "공허물약", "녹슨 쇳가루", "약화 물약", "병 속의 허상", "액체 방벽", "수비물약", "좀비물약", "증진제", "윤활제", "증폭제", "결속제", "소생물약", "태엽물약", "봉인물약", "용해물약", "이식물약"], "curse": ["", "두려움", "기만", "무력함", "죄책감", "과대망상", "공허함", "혼란함", "비현실성", "부주의", "공허의 바다"], "event": ["", "축복의 성당", "의심스러운 제단", "이상한 얼굴의 벽", "불타는 몬스터", "유랑상인", "지친 탐험가 무리", "어둠을 삼키는 자의 거래", "지친 토끼", "폐허의 제단", "강력한 적", "길드의 의뢰서", "수상한 약사", "토끼왕", "토끼왕", "토끼왕", "이상한 공간", "지혜로운 자", "버려진 가방", "어둠을 삼키는 자", "저주받은 부랑자", "일렁거리는 포탈", "인형사의 작업대", "싸우고 있는 탐험가 무리", "싸우고 있는 탐험가 무리", "복수하러 온 탐험가 무리", "끝없는 어둠", "끓어 넘치는 솥", "고요한 거울 웅덩이", "맥박치는 알 둥지", "쓰러져 꾼 꿈", "가면무도회", "탐험대의 마지막 야영지", "어둠에 물든 성당", "공허의 잠식", "공허 숭배 집회", "부서진 모듈 더미", "인형들의 무덤", "어둠을 삼키는 자의 최후", "떠돌이 대장장이", "예언의 제단", "떠돌이 수선공", "정화의 샘", "갈라지는 고치 무더기"], "encounter": ["새끼거미×8", "시체먹이×3 + 새끼거미×2", "시체먹이 + 고블린×3", "어둑곰 + 고블린×2", "돌거북 + 땅두더지×2", "독전갈×2 + 고블린×4", "어둑곰×4 + 독전갈×2", "땅두더지×3", "새끼거미×12 + 독전갈×3", "시체먹이×12 + 고블린×6", "악성좀비×3 + 시체더미×0", "여왕거미 + 새끼거미×6", "거대어둑곰 + 고블린×3", "망토고블린", "어둑술사 + 악성좀비×3 + 시체더미×0", "땅굴군주", "거대박쥐×4", "화살함정×2 + 악의×4", "거대박쥐×2 + 악의×4", "거대박쥐×3 + 악의×2", "털보거인×2 + 악의×3", "타락사제 + 불의전사×3", "거미줄직공×2 + 생존자 + 거미고치×0", "털보거인 + 타락사제 + 화살함정×2 + 악의×2", "거미줄직공 + 털보거인 + 거대박쥐×2 + 거미고치×0", "타락사제×2 + 거대박쥐×3", "살점먹이 + 시체먹이×6", "탐험대장 + 탐험가×3", "악의×4 + 멸살자", "고독한자", "흡수자 + 악의×0", "불의군주", "공허거미×3", "공허포격기×2", "어둠에삼켜진자×2", "공허방랑자×2", "공허먹이", "공허거인", "공허거미×2 + 악의", "털보거인 + 공허포격기 + 화살함정", "공허거미 + 공허방랑자 + 거대박쥐", "생존자 + 공허포격기 + 거대박쥐", "공허먹이 + 악의×2", "공허방랑자 + 화살함정×2 + 악의", "공허거인 + 공허방랑자", "공허먹이 + 공허거미 + 악의", "어둠에삼켜진자 + 공허포격기 + 악의×2", "공허거인 + 공허포격기", "공허거인 + 공허거미", "공허방랑자×2 + 공허거미", "고대의장치 + 공허거미×0 + 공허방랑자×0 + 공허포격기×0 + 공허먹이×0", "가면수집가", "변이어둑곰", "공허의태양", "공허의달", "고대의전사", "악성좀비×2 + 시체더미×0 + 여왕거미 + 새끼거미×3", "악성좀비×2 + 시체더미×0 + 거대어둑곰 + 고블린×2", "여왕거미 + 새끼거미×3 + 거대어둑곰 + 고블린×2", "탐험가×4", "이상한얼굴의벽 + 시체먹이×0", "약사×2", "약사×3", "약사×4", "토끼왕", "화난토끼왕", "어둠을삼키는자", "부랑자", "일렁거리는포탈 + 거대박쥐×0 + 화살함정×0 + 불의전사×0", "살점먹이 + 탐험대장 + 시체먹이×0 + 탐험가×0", "탐험대장 + 탐험가×0", "시체먹이×0", "공허의조각 + 뭉쳐진공허×0", "공허의왕 + 어두운기둥×0 + 공허의파편×0", "공허의태양 + 공허의달", "거대박쥐 + 화살함정 + 생존자 + 털보거인 + 악의", "고대의장치 + 시체더미 + 일렁거리는포탈 + 뭉쳐진공허 + 어두운기둥", "불도마뱀×3 + 시체먹이×3", "어둑곰 + 시체먹이×2 + 고블린×4", "어둑곰×2 + 불도마뱀×2", "어둑곰 + 불도마뱀 + 새끼거미×4", "돌거북 + 독전갈×2", "돌거북×2 + 고블린×3", "고블린족장 + 고블린×4", "불도마뱀×2 + 돌거북×2", "불의전사×2 + 악의×3", "생존자×2 + 화살함정×3", "포자벌레×3 + 거대박쥐", "불의전사 + 생존자 + 포자벌레 + 악의", "포자벌레×2 + 타락사제 + 거미줄직공×2 + 거미고치×0", "사냥곰 + 덫사냥꾼", "공허거미×3 + 악의×3", "공허분열체×2 + 작은분열체×0 + 공허거미 + 악의", "공허방랑자×3 + 거대박쥐×3 + 악의", "공허거미×2 + 공허분열체 + 작은분열체×0 + 화살함정 + 악의", "공허포격기×2 + 공허거미×2 + 악의×4", "망각의사도 + 공허거미×3 + 악의×4", "망각의사도 + 공허분열체×3 + 작은분열체×0", "공허포격기 + 공허방랑자×2 + 공허분열체 + 작은분열체×0 + 악의×3", "공허거인 + 공허방랑자×3 + 악의×3", "공허먹이×2 + 공허거미×3 + 악의×2", "어둠에삼켜진자×3 + 공허포격기×2 + 악의×2", "공허거인 + 공허포격기×3 + 공허거미", "공허먹이×2 + 망각의사도×2 + 공허분열체 + 작은분열체×0 + 악의×2", "어둠에삼켜진자 + 공허거인 + 공허거미×2 + 망각의사도", "기억도둑 + 공허방랑자×2 + 악의×0", "시체먹이×2"], "grade": {"module": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], "minion": [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2], "relic": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 0, 1, 2, 0, 2, 1, 2, 1, 2, 0, 0, 1], "potion": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2]}};
 </script>
 <script>
 /* 런 기록 코드 해독 (2026-11-07). 규칙은 src/RunLog.eps · src/RunLogSnap.eps
@@ -256,6 +302,7 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
   function decodeSyms(syms, names) {
     names = names || {};
     const out = [];
+    const ev = []; //화면용 구조 기록 (글 기록 out과 같은 순서)
     const r = new Reader(syms);
     const ver = r.bits(4);
     const W = {
@@ -276,6 +323,7 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
     const seed = r.bits(20);
     const diff = r.bits(2);
     out.push('판 ' + ver + ' 시드 ' + seed + ' 난이도 ' + diff);
+    ev.push({ type: 'head', ver, seed, diff, named: useNames });
     if (!useNames) out.push('(이름표는 판 ' + names.version + '용이라 번호만 적음)');
     if (ver < 2) out.push('(판 1 기록은 지원하지 않음)');
     let act = 1, floor = 0, lastVal = 0;
@@ -287,28 +335,36 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
       return (GAIN[kind] || '종류' + kind) + ' ' + (t ? nm(t, v) : v);
     };
     const state = (ind) => {
+      const st = { minions: [] };
       const hp = r.bits(10), mhp = r.bits(10), gold = r.bits(11);
       const up = [r.bits(5), r.bits(5), r.bits(5), r.bits(5)];
       const lim = r.bits(4), n = r.bits(4);
+      Object.assign(st, { hp, mhp, gold, up, lim });
       out.push(ind + '체력 ' + hp + '/' + mhp + ' 골드 ' + gold + ' | 영구 업그레이드 ' + UPG.map((u, i) => u + up[i]).join(' ') + ' | 출전한도 ' + lim + ' 하수인 ' + n);
       for (let i = 0; i < n; i++) {
         const t = r.bits(W.min), bench = r.bits(1), h4 = r.bits(13), atk = r.bits(7), arm = r.bits(5), cd = r.bits(4);
         odd(!has('minion', t), r.p);
-        const mods = [];
+        const mods = [], modv = [];
         for (let k = 0; k < 4; k++) {
           const id = r.bits(W.mod);
-          if (id === 0) { mods.push('-'); continue; }
+          if (id === 0) { mods.push('-'); modv.push(null); continue; }
+          const mv = { id, growth: 0, fuse: 0 };
+          modv.push(mv);
           odd(!has('module', id), r.p);
           let s = nm('module', id);
           if (r.bits(1) === 1) {
             const g = r.bits(7), f = r.bits(W.mod);
+            mv.growth = g;
+            mv.fuse = f;
             if (g) s += ' 성장' + g;
             if (f) s += ' +합성 ' + nm('module', f);
           }
           mods.push(s);
         }
+        st.minions.push({ t, bench, hp: h4 / 4, atk, arm, cd, mods: modv });
         out.push(ind + '  ' + nm('minion', t) + (bench ? ' (보관)' : '') + ' 체력+' + (h4 / 4) + ' 공+' + atk + ' 방+' + arm + ' 주기-' + cd + ' | ' + mods.join(' / '));
       }
+      return st;
     };
     try {
       while (r.left() >= 4) {
@@ -322,19 +378,23 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
           if (ver >= 2) tail = ' 방' + r.bits(8) + ' 수' + r.bits(4);
           floor += 1;
           odd(type === 0 || floor > 15, at);
+          ev.push({ type: 'room', at, act, floor, lane, room: type, atk, hp });
           out.push(P + '=== ' + act + '막 ' + floor + '층 방 길' + (lane ? 'B' : 'A') + ' ' + (ROOM[type] || type) + ' | 덱 공' + atk + ' 체' + hp + tail);
         } else if (tag === 2) {
           const enc = r.bits(7), lost = r.bits(8), t = r.bits(6);
           odd(useNames && enc >= names.encounter.length, at);
+          ev.push({ type: 'battle', at, enc, lost, sec: t * 10 });
           out.push(P + '전투 승리 편성' + nm('encounter', enc) + ' 잃은체력' + lost + ' 시간' + t * 10 + '초');
         } else if (tag === 3) {
           const kind = r.bits(1), n = r.bits(3), w = kind ? W.min : W.mod;
-          const ids = [];
+          const ids = [], idv = [];
           odd(n === 0 || n > 4, at);
-          for (let i = 0; i < n; i++) { const v = r.bits(w); odd(!has(kind ? 'minion' : 'module', v), at); ids.push(nm(kind ? 'minion' : 'module', v)); }
+          for (let i = 0; i < n; i++) { const v = r.bits(w); odd(!has(kind ? 'minion' : 'module', v), at); ids.push(nm(kind ? 'minion' : 'module', v)); idv.push(v); }
+          ev.push({ type: 'offer', at, kind, ids: idv });
           out.push(P + '후보 ' + (kind ? '하수인' : '모듈') + ' [' + ids.join(', ') + ']');
         } else if (tag === 4) {
           const kind = r.bits(1), idx = r.bits(3);
+          ev.push({ type: 'pick', at, kind, idx });
           out.push(P + '고름 ' + (kind ? '하수인' : '모듈') + ' ' + idx + '번째');
         } else if (tag === 5 || tag === 6) {
           const gk = r.bits(3);
@@ -342,48 +402,62 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
           const gv = gainVal(gk);
           odd(gk > 0 && gk < 5 && !has(['', 'relic', 'minion', 'potion', 'curse'][gk], lastVal), at);
           out.push(P + (tag === 5 ? '얻음 ' : '잃음 ') + gv);
+          ev.push({ type: tag === 5 ? 'gain' : 'lose', at, kind: gk, v: lastVal });
         } else if (tag === 7) {
-          const ev = r.bits(6);
-          odd(!has('event', ev), at);
-          out.push(P + '이벤트 ' + nm('event', ev));
+          const evId = r.bits(6);
+          odd(!has('event', evId), at);
+          ev.push({ type: 'event', at, id: evId });
+          out.push(P + '이벤트 ' + nm('event', evId));
         } else if (tag === 8) {
-          out.push(P + '선택지 (' + (r.bits(2) + 1) + ')');
+          const ch = r.bits(2);
+          ev.push({ type: 'choice', at, c: ch + 1 });
+          out.push(P + '선택지 (' + (ch + 1) + ')');
         } else if (tag === 9) {
           const pot = r.bits(1);
-          out.push(P + '이벤트에서 고름 ' + (pot ? '물약 ' + nm('potion', r.bits(W.pot)) : '모듈 ' + nm('module', r.bits(W.mod))));
+          const pv = r.bits(pot ? W.pot : W.mod);
+          ev.push({ type: 'evpick', at, pot, v: pv });
+          out.push(P + '이벤트에서 고름 ' + (pot ? '물약 ' + nm('potion', pv) : '모듈 ' + nm('module', pv)));
         } else if (tag === 10) {
           const cat = r.bits(3);
           odd(cat > 5, at);
-          if (cat === 5) { out.push(P + '상점 산 모듈 환불'); continue; }
+          if (cat === 5) { ev.push({ type: 'shop', at, cat }); out.push(P + '상점 산 모듈 환불'); continue; }
           const id = r.bits(W.mod), price = r.bits(9);
+          ev.push({ type: 'shop', at, cat, id, price });
           const t = ['module', 'relic', 'minion', 'potion', 'module'][cat];
           out.push(P + '상점 ' + (SHOP[cat] || cat) + ' ' + (t ? nm(t, id) : id) + ' 가격' + price);
         } else if (tag === 11) {
           const c = r.bits(3);
           odd(!(c in CAMP), at);
+          ev.push({ type: 'camp', at, c });
           out.push(P + '모닥불 ' + (CAMP[c] || c));
         } else if (tag === 12) {
           const pk = r.bits(W.pot);
           odd(!has('potion', pk), at);
+          ev.push({ type: 'potion', at, v: pk });
           out.push(P + '물약 사용 ' + nm('potion', pk));
         } else if (tag === 13) {
           out.push(P + '##### ' + act + '막 끝');
-          state('    ');
+          ev.push({ type: 'act', at, act, state: state('    ') });
           act += 1;
           floor = 0;
         } else if (tag === 14) {
           const ending = r.bits(2), enc = r.bits(7), score = r.bits(13), kills = r.bits(10);
           odd(ending > 2, at);
+          const endEv = { type: 'end', at, ending, enc, score, kills };
+          ev.push(endEv);
           out.push(P + '##### 런 끝: ' + ENDING[ending] + ' 마지막 편성' + nm('encounter', enc) + ' 점수' + score + ' 처치' + kills);
-          state('    ');
+          endEv.state = state('    ');
           const nr = r.bits(8), rel = [];
-          for (let i = 0; i < nr; i++) rel.push(nm('relic', r.bits(W.relic)));
+          endEv.relics = [];
+          for (let i = 0; i < nr; i++) { const rv = r.bits(W.relic); endEv.relics.push(rv); rel.push(nm('relic', rv)); }
           out.push('    유물 ' + nr + '개: ' + rel.join(', '));
           const cur = [];
-          for (let k = 1; k <= 10; k++) { const c = r.bits(3); if (c) cur.push(nm('curse', k) + '×' + c); }
+          endEv.curses = [];
+          for (let k = 1; k <= 10; k++) { const c = r.bits(3); if (c) { cur.push(nm('curse', k) + '×' + c); endEv.curses.push({ id: k, n: c }); } }
           out.push('    저주: ' + (cur.join(', ') || '없음'));
           const np = r.bits(3), pots = [];
-          for (let i = 0; i < np; i++) pots.push(nm('potion', r.bits(W.pot)));
+          endEv.potions = [];
+          for (let i = 0; i < np; i++) { const pv2 = r.bits(W.pot); endEv.potions.push(pv2); pots.push(nm('potion', pv2)); }
           out.push('    물약 칸 ' + np + ': ' + pots.join(', '));
           ended = true;
           odd(r.left() >= 10, r.p);
@@ -391,15 +465,18 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
         } else if (tag === 15) {
           const slot = r.bits(4), t = r.bits(W.min);
           odd(slot > 11 || !(t === 0 || has('minion', t)), at);
-          if (t === 0) { out.push(P + '  칸' + slot + ' 비어 있음'); continue; }
+          if (t === 0) { ev.push({ type: 'stat', at, slot, t: 0 }); out.push(P + '  칸' + slot + ' 비어 있음'); continue; }
           const h4 = r.bits(13), atk = r.bits(7), arm = r.bits(5), cd = r.bits(4);
+          ev.push({ type: 'stat', at, slot, t, hp: h4 / 4, atk, arm, cd });
           out.push(P + '  칸' + slot + ' ' + nm('minion', t) + ' 체력+' + (h4 / 4) + ' 공+' + atk + ' 방+' + arm + ' 주기-' + cd);
         }
       }
     } catch (e) {
       if (e.message !== 'END') throw e;
       out.push('(기록이 여기서 끊김: 글자가 모자람)');
+      ev.push({ type: 'cut' });
     }
+    out.ev = ev;
     out.problemAt = problemAt;
     out.ended = ended;
     return out;
@@ -445,11 +522,11 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
     }
     let log = [];
     if (syms.length) log = decodeSyms(syms, names);
-    if (stopAt > 0) log.push('(' + stopAt + '번째 줄을 고치지 못해 그 앞까지만 해독함)');
-    return { lines: fixed, log: log, ok: stopAt < 0 && fixed.every(f => f.status !== 'guess') };
+    if (stopAt > 0) { if (log.ev) log.ev.push({ type: 'stop', line: stopAt }); log.push('(' + stopAt + '번째 줄을 고치지 못해 그 앞까지만 해독함)'); }
+    return { lines: fixed, log: log, ev: log.ev || [], stopAt: stopAt, ok: stopAt < 0 && fixed.every(f => f.status !== 'guess') };
   }
 
-  const api = { ALPHA, LINE_SYMS, check, splitLines, repairLine, decodeSyms, decodeText };
+  const api = { ROOM, CAMP, SHOP, GAIN, ENDING, UPG, ALPHA, LINE_SYMS, check, splitLines, repairLine, decodeSyms, decodeText };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RunLogDecode = api;
 
@@ -468,64 +545,176 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
 </script>
 <script>
 (function () {
-  const D = window.RunLogDecode;
-  const SAMPLE = "1/1쪽  시드 249107  (1) 이전 (2) 다음 (X) 점수표\nQBNTM4522222AYL2222222B26JJUEQJ7JKB5Y2W24WA2FG6F63Q6FR6ZJKM8N2YAQL2232Q6 S\n2N2EJ2B360E2H2222A2N2EJ2B363E2H2222SK9L8BM2N2YAQL2232GA2N2EJ2B363E2H2222 F\nA23SA2A2222N4K2 G";
-  const LABEL = { ok: '정상', fixed: '고침', guess: '확인 필요', bad: '고치지 못함' };
+  const D = window.RunLogDecode, N = RUNLOG_NAMES;
+  const SAMPLE = "1/2쪽  (1) 이전 (2) 다음 (X) 점수표\nQKBRZ4CE2258NNB433TH4AS2HLANQ3REJ23NF22L2CE2B3225DF64M363HCAA2UAAJL64J2A N\n3S25D68AU2039DJ25L8A2MW8J2B3A25D884C462RFJE265A2MJ7A2A3225DKN4VK6AFMSV44 8\nPJZ28S6M426C22SSL2TSG2KSF44S6S32N6354AC2ASS46TJC2KSM4A52A48SQ39FA22J32KL E\nADJ2B3S25DDN4L56BF5T55AR2B36EQ39ASA2S3S2M62J2A3235D8Q4D4639CJA3S7J2L29E2 Y\nA3J25DH65M26CFXSF56K2V42A6Z46AC22SSC4BJ823S344C2E54A6A23AC22SSU43KU2KCDA E\nYT8D273D32222GE3N42K2B6A8CEAFASW26E23MJE6JA3A25DNN2426BF7SB4CG2624AN3LJ3 5\nSK4G62F38JCTLSM44NJ846S6C452C28SS473KG6KCD2YJ23725J2533J2K4J28Q4AG65B6GK H\nJA6EKJ26K8A2J4J38QQAN62A6GUJU5NF226FU7S5GTJ33E2228THS2J4248QAED67A2GVJ58 7\nWK23PCL9YJJ56J722PCLAGQJM5SDJ3QCJ3YUJV7E923QCG7YQJT6ADJ3737B2J4228Q6B6N3 U\nA6GJJS4NG2243BA2J4238Q4B688ALU8JM6WY2Z36JNLPJHNT5E9SV2222J5R2N2626L64KB2 X\n2/2쪽  (1) 이전 (2) 다음 (X) 점수표\n26CN7422ASB3L8SJB7Z2RB2B26DA2T8WQ33DSF24EL6244724EEKKGAMJAPP2ZDJS3W22JLW Q\n422A3S25DKNA4662RAA24N5J2MN4JJA3S25DAN3LK6BF3S358LJV28A6P426C2ASS44XKE6K A\nSB4622K38E6A242C2ASSL37K23BSM4CH2A36NNBLJDSZ4CS2638JNKGJCSZ48GJR26A6E26A N\nC22SSU37KQ2BCD5YK2T66D224BH23K4248QJAGN5A6GR243EH23LFSB56S2Y48J6A466C22S 3\nS47XK22BCD7GL2L3E823MFS94862B5AN6N22AC24SSC43JQ2BCDBGT8FJW2V32222GJ5J3A2 R\n3ANA9862JAKA29M2SH6HS2G6252222SKF2E25843K6224644U6AJGACZ27222222N2B3 Z";
   const $ = id => document.getElementById(id);
-  const src = $('src'), out = $('out'), linesEl = $('lines'), sum = $('sum'), toast = $('toast'), exNote = $('ex-note');
-  let lastLog = '';
+  const src = $('src');
+  let lastLog = '', named = true, isSample = false;
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
-  function esc(s) { return s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]); }
-  function colorCode(t) {
-    let h = '';
-    for (let i = 0; i < t.length; i += 8) h += '<span class="g' + ((i / 8) % 2) + '">' + esc(t.slice(i, i + 8)) + '</span>';
-    return h;
+  function nm(table, id) {
+    const s = named && N[table] && N[table][id];
+    const g = N.grade && N.grade[table] ? N.grade[table][id] || 0 : 0;
+    const cls = table === 'event' ? 'ev' : table === 'curse' ? 'curse' : 'n' + g;
+    return '<span class="' + cls + '">' + esc(s || ('#' + id)) + '</span>';
   }
+  const TBL = ['', 'relic', 'minion', 'potion', 'curse'];
+  function gainText(e) {
+    const sign = e.type === 'gain' ? '+' : '−';
+    if (e.kind === 0) return '<span class="gold num">' + sign + e.v + ' 골드</span>';
+    return '<span class="k">' + sign + ' ' + D.GAIN[e.kind] + '</span>' + nm(TBL[e.kind], e.v);
+  }
+  function mods(list) {
+    return list.map(m => {
+      if (!m) return '<span class="dim">·</span>';
+      let s = nm('module', m.id);
+      if (m.growth) s += ' <span class="dim num">+' + m.growth + '</span>';
+      if (m.fuse) s += ' <span class="dim">⊕</span> ' + nm('module', m.fuse);
+      return s;
+    }).join('<span class="dim"> / </span>');
+  }
+  function deckBlock(title, st, extra) {
+    const rows = st.minions.map(m => '<tr><td>' + nm('minion', m.t) + (m.bench ? ' <span class="dim">보관</span>' : '') + '</td>' +
+      '<td class="num">' + m.hp + '</td><td class="num">' + m.atk + '</td><td class="num">' + m.arm + '</td><td class="num">' + m.cd + '</td>' +
+      '<td class="mods">' + mods(m.mods) + '</td></tr>').join('');
+    return '<div class="deck"><div class="deck-h"><span class="ttl">' + title + '</span>' +
+      '<span>체력 <b class="num">' + st.hp + '/' + st.mhp + '</b></span><span>골드 <b class="num">' + st.gold + '</b></span>' +
+      '<span>영구 강화 ' + D.UPG.map((u, i) => u + ' <b class="num">' + st.up[i] + '</b>').join(' ') + '</span>' +
+      '<span>하수인 <b class="num">' + st.minions.length + '</b></span></div>' +
+      '<div class="tbl"><table><thead><tr><th>하수인</th><th class="num">체력+</th><th class="num">공+</th><th class="num">방+</th><th class="num">주기−</th><th>모듈</th></tr></thead><tbody>' +
+      rows + '</tbody></table></div>' + (extra || '') + '</div>';
+  }
+
+  /* 구조 기록 → 막 · 층 묶음 */
+  function renderMap(ev) {
+    const offers = [];
+    for (const e of ev) {
+      if (e.type === 'offer') offers.push(e);
+      if (e.type === 'pick') { for (let i = offers.length - 1; i >= 0; i--) if (offers[i].kind === e.kind) { offers[i].picked = e.idx; break; } }
+    }
+    const acts = [];
+    let act = null, floor = null, end = null, head = null, warn = [];
+    const ensureAct = n => { if (!act || act.n !== n) { act = { n, floors: [], deck: null }; acts.push(act); } };
+    for (const e of ev) {
+      if (e.type === 'head') { head = e; continue; }
+      if (e.type === 'room') { ensureAct(e.act); floor = { e, items: [], stats: [] }; act.floors.push(floor); continue; }
+      if (e.type === 'act') { ensureAct(e.act); act.deck = e.state; act = null; floor = null; continue; }
+      if (e.type === 'end') { end = e; continue; }
+      if (e.type === 'cut') { warn.push('기록이 여기서 끊깁니다. 마지막 쪽이 빠졌거나 런 도중의 기록일 수 있습니다.'); continue; }
+      if (e.type === 'stop') { warn.push(e.line + '번째 줄을 고치지 못해 그 앞까지만 보여줍니다. 왼쪽 줄 검사를 확인하세요.'); continue; }
+      if (!floor) { ensureAct(act ? act.n : 1); floor = { e: null, items: [], stats: [] }; act.floors.push(floor); }
+      if (e.type === 'stat') floor.stats.push(e); else if (e.type !== 'pick') floor.items.push(e);
+    }
+    let h = '';
+    for (const a of acts) {
+      h += '<section class="act"><div class="act-h"><h2>' + a.n + '막</h2><span>' + a.floors.filter(f => f.e).length + '개 층</span></div>';
+      for (const f of a.floors) {
+        const r = f.e;
+        h += '<div class="floor"><div class="fn">' + (r ? r.floor : '') + '</div>' +
+          '<div class="room r' + (r ? r.room : 1) + '">' + (r ? D.ROOM[r.room] || r.room : '') + (r ? '<small>길 ' + (r.lane ? 'B' : 'A') + '</small>' : '') + '</div><div class="items">';
+        for (const e of f.items) h += '<div class="it">' + item(e) + '</div>';
+        if (f.stats.length) h += '<div class="it stats">덱 변화 ' + f.stats.map(s => s.t ? '칸' + s.slot + ' ' + esc((named && N.minion[s.t]) || '#' + s.t) + ' 체+' + s.hp + ' 공+' + s.atk + ' 방+' + s.arm + ' 주−' + s.cd : '칸' + s.slot + ' 빔').join(' · ') + '</div>';
+        if (!f.items.length && !f.stats.length) h += '<div class="it dim">기록 없음</div>';
+        h += '</div></div>';
+      }
+      if (a.deck) h += deckBlock(a.n + '막을 마칠 때', a.deck);
+      h += '</section>';
+    }
+    if (end && end.state) {
+      const extra = '<div class="end-list">' +
+        '<div><span class="k">유물 ' + end.relics.length + '</span>' + (end.relics.map(v => nm('relic', v)).join(', ') || '<span class="dim">없음</span>') + '</div>' +
+        '<div><span class="k">저주</span>' + (end.curses.map(c => nm('curse', c.id) + ' <span class="dim num">×' + c.n + '</span>').join(', ') || '<span class="dim">없음</span>') + '</div>' +
+        '<div><span class="k">물약</span>' + (end.potions.map(v => nm('potion', v)).join(', ') || '<span class="dim">없음</span>') + '</div></div>';
+      h += '<section class="act"><div class="act-h"><h2>런 끝</h2><span>' + D.ENDING[end.ending] + ' · 마지막 전투 ' + encName(end.enc) + '</span></div>' + deckBlock('남은 덱', end.state, extra) + '</section>';
+    }
+    for (const w of warn) h += '<div class="warn-row">' + esc(w) + '</div>';
+    h += '<details class="raw"><summary>글로 보기 (AI에 넘기는 글)</summary><pre>' + esc(lastLog) + '</pre></details>';
+    return { html: h, head, end, acts };
+  }
+  function encName(id) { return '<span>' + esc((named && N.encounter[id]) || '편성 ' + id) + '</span>'; }
+  function item(e) {
+    switch (e.type) {
+      case 'battle': return '<span class="k">전투</span>' + encName(e.enc) + (e.lost ? ' <span class="dim">·</span> <span class="hurt num">체력 −' + e.lost + '</span>' : ' <span class="dim">· 피해 없음</span>') + ' <span class="dim num">· ' + e.sec + '초</span>';
+      case 'offer': {
+        const t = e.kind ? 'minion' : 'module';
+        const opts = e.ids.map((v, i) => '<span class="opt' + (i === e.picked ? ' on' : '') + '">' + nm(t, v) + '</span>').join('<span class="sep"> / </span>');
+        return '<span class="offer"><span class="k">' + (e.kind ? '하수인 보상' : '모듈 보상') + '</span>' + opts + (e.picked === undefined ? ' <span class="dim">(안 고름)</span>' : '') + '</span>';
+      }
+      case 'gain': case 'lose': return gainText(e);
+      case 'event': return '<span class="k">이벤트</span>' + nm('event', e.id);
+      case 'choice': return '<span class="k">선택</span><span class="num">(' + e.c + ')</span>';
+      case 'evpick': return '<span class="k">이벤트에서 고름</span>' + (e.pot ? nm('potion', e.v) : nm('module', e.v));
+      case 'shop': {
+        if (e.cat === 5) return '<span class="k">상점</span>산 모듈 환불';
+        const t = ['module', 'relic', 'minion', 'potion', 'module'][e.cat];
+        return '<span class="k">상점 ' + D.SHOP[e.cat] + '</span>' + nm(t, e.id) + ' <span class="gold num">' + e.price + '골드</span>';
+      }
+      case 'camp': return '<span class="k">모닥불</span>' + (D.CAMP[e.c] || e.c);
+      case 'potion': return '<span class="k">물약 사용</span>' + nm('potion', e.v);
+      default: return '';
+    }
+  }
+
+  function renderCheck(lines) {
+    const cnt = { ok: 0, fixed: 0, guess: 0, bad: 0 };
+    $('check').innerHTML = lines.map(l => {
+      cnt[l.status]++;
+      let code = '';
+      for (let i = 0; i < l.text.length; i += 8) code += '<span class="' + ((i / 8) % 2 ? 'b' : 'a') + '">' + esc(l.text.slice(i, i + 8)) + '</span>';
+      const why = l.status === 'ok' ? '' : '<div class="why">' + esc(l.note) + '</div>';
+      return '<div class="cl ' + l.status + '"><span class="n">' + l.n + '</span><span class="code">' + code + '</span>' + why + '</div>';
+    }).join('') || '<div class="empty">코드 줄을 찾지 못했습니다. 72글자 줄과 끝의 확인 글자가 함께 들어 있는지 확인하세요.</div>';
+    const t = [lines.length + '줄'];
+    if (cnt.fixed) t.push('고침 ' + cnt.fixed);
+    if (cnt.guess) t.push('확인 필요 ' + cnt.guess);
+    if (cnt.bad) t.push('실패 ' + cnt.bad);
+    $('tally').innerHTML = lines.length ? t.map(x => '<span>' + x + '</span>').join('') : '';
+  }
+
   function render() {
-    const text = src.value;
-    if (!text.trim()) {
-      linesEl.innerHTML = '';
-      sum.innerHTML = '';
-      out.innerHTML = '<span class="p">기록 코드를 붙여넣으면 여기에 해독 결과가 나옵니다.</span>';
+    if (!src.value.trim()) {
+      $('check').innerHTML = '';
+      $('tally').innerHTML = '';
+      $('hero').innerHTML = '<p class="seed"><small>시드</small>—</p><p class="empty">기록 코드를 붙여넣으면 런 지도가 나옵니다.</p>';
+      $('map').innerHTML = '';
       lastLog = '';
       return;
     }
-    const res = D.decodeText(text, RUNLOG_NAMES);
-    const count = { ok: 0, fixed: 0, guess: 0, bad: 0 };
-    linesEl.innerHTML = res.lines.map(l => {
-      count[l.status]++;
-      const msg = l.status === 'ok' ? '<span class="code">' + colorCode(l.text.slice(0, 16)) + '…</span>' : esc(l.note);
-      return '<li><span class="n">' + l.n + '줄</span><span class="chip ' + l.status + '">' + LABEL[l.status] + '</span><span class="msg">' + msg + '</span></li>';
-    }).join('') || '<li><span></span><span></span><span class="msg">코드 줄을 찾지 못했습니다. 72글자 줄과 끝의 확인 글자가 함께 들어 있는지 확인하세요.</span></li>';
-    sum.innerHTML = '<span class="chip">' + res.lines.length + '줄</span>' +
-      ['fixed', 'guess', 'bad'].filter(k => count[k]).map(k => '<span class="chip ' + k + '">' + LABEL[k] + ' ' + count[k] + '</span>').join('');
+    const res = D.decodeText(src.value, N);
+    renderCheck(res.lines);
     lastLog = res.log.join('\n');
-    out.innerHTML = res.log.map(s => {
-      const e = esc(s);
-      if (/^\[\d+\] (===|#####)/.test(s) || /^판 /.test(s)) return '<span class="h">' + e + '</span>';
-      if (/^\(/.test(s)) return '<span class="e">' + e + '</span>';
-      return e.replace(/^(\[\d+\])/, '<span class="p">$1</span>');
-    }).join('\n');
+    const head = res.ev.find(e => e.type === 'head');
+    named = !head || head.named;
+    const m = renderMap(res.ev);
+    $('map').innerHTML = m.html;
+    if (!head) { $('hero').innerHTML = '<p class="empty">해독할 수 있는 줄이 없습니다.</p>'; return; }
+    const lastRoom = [...res.ev].reverse().find(e => e.type === 'room');
+    const f = [];
+    f.push('<li>난이도 <b>' + head.diff + '</b></li>');
+    if (lastRoom) f.push('<li>도달 <b>' + lastRoom.act + '막 ' + lastRoom.floor + '층</b></li>');
+    if (m.end) {
+      f.push('<li class="' + (m.end.ending ? 'win' : 'lose') + '">결과 <b>' + D.ENDING[m.end.ending] + '</b></li>');
+      f.push('<li>점수 <b>' + m.end.score + '</b></li><li>처치 <b>' + m.end.kills + '</b></li>');
+    }
+    f.push('<li>기록 판 <b>' + head.ver + '</b></li>');
+    $('hero').innerHTML = '<p class="seed"><small>시드</small>' + head.seed + '</p><ul class="facts">' + f.join('') + '</ul>' +
+      (isSample ? '<p class="example">지금 보이는 것은 시험용 예시 기록입니다. 무작위로 만든 기록이고, 둘째 줄의 한 글자를 일부러 0으로 바꿔 두어 복원되는 모습을 보여줍니다.</p>' : '') +
+      (named ? '' : '<p class="example">이 기록은 판 ' + head.ver + '이라 지금 이름표(판 ' + N.version + ')와 번호가 달라 이름 없이 번호만 보여줍니다.</p>');
   }
-  function setText(t, isSample) {
-    src.value = t;
-    exNote.hidden = !isSample;
-    render();
-  }
-  src.addEventListener('input', () => { exNote.hidden = true; render(); });
+  function setText(t, sample) { src.value = t; isSample = sample; render(); }
+  src.addEventListener('input', () => { isSample = false; render(); });
   $('btn-sample').addEventListener('click', () => setText(SAMPLE, true));
   $('btn-clear').addEventListener('click', () => { setText('', false); src.focus(); });
   $('btn-copy').addEventListener('click', () => {
-    if (!lastLog) return;
-    const done = m => { toast.textContent = m; setTimeout(() => { toast.textContent = ''; }, 2500); };
+    const done = m => { $('toast').textContent = m; setTimeout(() => { $('toast').textContent = ''; }, 2500); };
+    if (!lastLog) { done('먼저 기록 코드를 붙여넣으세요.'); return; }
     const fallback = () => {
-      const r = document.createRange(); r.selectNodeContents(out);
-      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
-      done('복사가 막혀 있어 결과를 선택해 두었습니다. Ctrl+C로 복사하세요.');
+      const d = document.querySelector('details.raw'); if (d) d.open = true;
+      const pre = document.querySelector('details.raw pre');
+      if (pre) { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+      done('복사가 막혀 있어 글을 선택해 두었습니다. Ctrl+C로 복사하세요.');
     };
-    try {
-      navigator.clipboard.writeText(lastLog).then(() => done('복사했습니다. AI 대화창에 붙여넣으세요.'), fallback);
-    } catch (e) { fallback(); }
+    try { navigator.clipboard.writeText(lastLog).then(() => done('복사했습니다. AI 대화창에 붙여넣으세요.'), fallback); } catch (e) { fallback(); }
   });
   setText(SAMPLE, true);
 })();
