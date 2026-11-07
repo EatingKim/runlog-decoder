@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}:root{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}</style>
+<title>런 기록 해독기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* 레이아웃: 왼쪽 = 붙여넣기와 줄 검사, 오른쪽 = 해독 결과. 좁으면 한 줄로 쌓음.
+   코드 줄은 게임 기록 화면처럼 8글자마다 흰색·노란색, 확인 글자는 파랑 */
+:root {
+  --bg: #f3f4f7; --panel: #ffffff; --fg: #1b1f2a; --muted: #5d6475; --line: #d9dde6;
+  --accent: #2f5bd3; --gold: #9a6a00; --ok: #227a4a; --warn: #a15c00; --bad: #b3261e;
+  --ok-bg: #e3f3ea; --warn-bg: #fdf0db; --bad-bg: #fbe5e3; --code-bg: #161a24; --code-a: #e9ecf3; --code-b: #f2c94c; --code-c: #7fa8ff;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-mono: "JetBrains Mono", "D2Coding", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11141b; --panel: #191d27; --fg: #e6e8ee; --muted: #9aa1b2; --line: #2b3140;
+  --accent: #86a6ff; --gold: #f2c94c; --ok: #6fd39b; --warn: #f2b55c; --bad: #ff8a80;
+  --ok-bg: #173325; --warn-bg: #3a2a12; --bad-bg: #3d1a18; --code-bg: #0b0d12; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11141b; --panel: #191d27; --fg: #e6e8ee; --muted: #9aa1b2; --line: #2b3140;
+  --accent: #86a6ff; --gold: #f2c94c; --ok: #6fd39b; --warn: #f2b55c; --bad: #ff8a80;
+  --ok-bg: #173325; --warn-bg: #3a2a12; --bad-bg: #3d1a18; --code-bg: #0b0d12; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.55; }
+pre, textarea, .code, .demo { font-variant-ligatures: none; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 20px; }
+header { display: grid; gap: 6px; }
+h1 { margin: 0; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); }
+.demo { font-family: var(--f-mono); font-size: 0.8rem; background: var(--code-bg); border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 2px; color: var(--muted); max-width: 70ch; }
+.steps b { color: var(--fg); font-weight: 600; }
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: space-between; }
+h2 { margin: 0; font-size: 0.8rem; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+button { font: inherit; font-size: 0.85rem; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
+button.primary:hover { filter: brightness(1.1); color: var(--panel); }
+button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+textarea { width: 100%; box-sizing: border-box; min-height: 220px; resize: vertical; font-family: var(--f-mono); font-size: 0.78rem; line-height: 1.6;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+.note-ex { font-size: 0.8rem; color: var(--warn); margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 0.78rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--bg); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip.ok { background: var(--ok-bg); color: var(--ok); } .chip.fixed { background: var(--ok-bg); color: var(--ok); }
+.chip.guess { background: var(--warn-bg); color: var(--warn); } .chip.bad { background: var(--bad-bg); color: var(--bad); }
+ol.lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 340px; overflow-y: auto; }
+ol.lines li { display: grid; grid-template-columns: 3.2em auto minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 0.82rem; }
+ol.lines .n { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+ol.lines .msg { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.code { font-family: var(--f-mono); background: var(--code-bg); border-radius: 4px; padding: 1px 6px; }
+.g0 { color: var(--code-a); } .g1 { color: var(--code-b); } .ck { color: var(--code-c); }
+pre.out { margin: 0; background: var(--code-bg); color: var(--code-a); border-radius: 8px; padding: 14px; font-family: var(--f-mono); font-size: 0.8rem; line-height: 1.65;
+  overflow: auto; max-height: 72vh; white-space: pre; tab-size: 4; }
+pre.out .h { color: var(--code-b); font-weight: 600; } pre.out .p { color: #7f8799; } pre.out .e { color: #ff8a80; }
+.toast { font-size: 0.8rem; color: var(--ok); min-height: 1.2em; }
+.empty { color: var(--muted); font-size: 0.85rem; margin: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>상실의 동굴 런 기록 해독기</h1>
+    <p class="sub">게임 오버 화면의 기록 코드를 읽을 수 있는 글로 바꿉니다. 모두 이 브라우저 안에서 처리되고 어디로도 보내지 않습니다.</p>
+    <div class="demo" aria-label="기록 화면 한 줄 모양"><span class="g0">QBNTM452</span><span class="g1">2222AYL2</span><span class="g0">222222B2</span><span class="g1">6JJUEQJ7</span><span class="g0">…</span> <span class="ck">S</span></div>
+    <ol class="steps">
+      <li><b>기록 보기 화면을 찍습니다.</b> 쪽이 여러 개면 쪽마다 찍습니다.</li>
+      <li><b>구글 렌즈로 글자를 복사합니다.</b> 쪽 순서대로 아래 칸에 이어 붙이면 됩니다. 쪽 제목 줄은 알아서 건너뜁니다.</li>
+      <li><b>해독 결과를 복사해서 AI에 붙여넣습니다.</b> 사진보다 토큰이 훨씬 적게 듭니다.</li>
+    </ol>
+  </header>
+
+  <div class="grid">
+    <section aria-labelledby="h-in">
+      <div class="bar">
+        <h2 id="h-in">붙여넣기</h2>
+        <div class="btns">
+          <button type="button" id="btn-sample">예시 넣기</button>
+          <button type="button" id="btn-clear">지우기</button>
+        </div>
+      </div>
+      <textarea id="src" spellcheck="false" autocomplete="off" aria-label="기록 코드"></textarea>
+      <p class="note-ex" id="ex-note">지금 들어 있는 글은 시험용 예시입니다. 둘째 줄의 한 글자를 일부러 0으로 바꿔 두어 복원되는 모습을 보여줍니다.</p>
+      <div class="bar"><h2>줄 검사</h2><div class="chips" id="sum"></div></div>
+      <ol class="lines" id="lines"></ol>
+    </section>
+
+    <section aria-labelledby="h-out">
+      <div class="bar">
+        <h2 id="h-out">해독 결과</h2>
+        <div class="btns"><button type="button" class="primary" id="btn-copy">결과 복사</button></div>
+      </div>
+      <div class="toast" id="toast" role="status"></div>
+      <pre class="out" id="out" tabindex="0"></pre>
+    </section>
+  </div>
+</div>
+
+<script>
+const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사격", "피의 맹세", "출혈 사격", "피의 방벽", "튼튼한 육체", "빠른 회복", "긴급 충전", "방벽 보충", "투창 연습", "끈기있는 수련", "빠른 재장전", "인내하기", "약점 극복", "돌격 나팔", "웅크리기", "독 묻히기", "내구성 훈련", "튕겨내기", "아드레날린", "기선 제압", "실전 경험", "방어진 구축", "견제 사격", "환영 다루기", "다중 타격", "달아오른 총열", "피의 갈증", "약물 과용", "혈마법", "수류탄 투척", "총기 정비", "영원한 순환", "고난도 수련", "무기 연마", "체질 개선", "끈기", "기동력 극대화", "거대화", "하나의 목표", "부식 장갑", "수비 훈련", "필사의 저항", "내성 키우기", "피를 깎는 노력", "전투의 열기", "넘치는 생명력", "약점 찌르기", "지키는 힘", "몰아치기", "고통의 단말마", "산성 펀치", "방패 들기", "역돌진", "숨 고르기", "힘 빼기", "칼날 발사", "탄막 가열", "절대방벽", "버티기 자세", "강철 피부", "응급 처치", "임기응변", "고통의 장막", "폭풍 연타", "산화", "끝없는 성장", "부식 독", "총공격 개시", "섬광 사격", "전투 격려", "모두를 위하여", "산성 포화", "결전 태세", "연쇄 반응", "고통 분담", "번지는 부식", "독 적응", "단련된 손놀림", "수호의 깃발", "포격 지원", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "불붙은 무기", "", "", "", "", "", "", "불씨 뿌리기", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "무딘 칼날", "헐거운 나사", "과열된 엔진", "피 묻은 갑주", "새는 독병", "뒤틀린 탄창", "금 간 영혼석", "찢어진 지갑", "저주받은 수의", "금 간 마나 수정", "녹아내린 촛대", "그을린 점화기", "새는 물통", "무거운 배낭", "금 간 보호구", "깨진 등불", "녹슨 족쇄", "", "", "", "분사", "공허", "포효"], "minion": ["", "마린모델", "질럿모델", "파뱃모델", "히드라모델", "저글링모델", "드론모델", "매딕모델", "울트라모델", "고스트모델(여)", "벌처모델", "스커지모델", "가디언모델", "뮤탈모델", "레이스모델", "닥템모델", "퀸모델", "감염된모델", "토끼인형", "토끼왕", "부랑자", "탐험가", "새끼 화염새", "화염새", "템플러모델", "다크아칸모델", "드라군모델", "고스트모델(남)", "리버모델", "럴커모델", "아칸모델", "배틀모델", "발키리모델", "아비터모델"], "relic": ["", "금화주머니", "지구본", "석탄", "황금바", "깨진도자기", "죽통주", "계획서", "낡은방패", "육포조각", "숫돌", "모이주머니", "비타민", "액받이부적", "뱀문양동전", "동물의 뼈", "위자보드", "검은피리", "미지의씨앗", "수정구", "물약주머니", "약사의장갑", "모래시계", "행운목걸이", "나무방패", "작은새총", "붕대", "재활용기", "찻잔세트", "청룡의비늘", "레드카펫", "유충알", "부속품", "흰색봉투", "깨진앙크", "암모나이트", "성수", "공략집", "방탄복", "요강단지", "티타늄봉", "굴렁쇠", "뼛가루", "로프뭉치", "할인권", "공허주머니", "철퇴", "작은보온병", "봉인장치", "확성기", "담뱃대", "훈련도구", "장난감말", "신성의검", "도시락박스", "괴종시계", "교정기", "작은가면", "나침반", "휴대용화분", "장검", "묵패", "반죽기", "주춧돌", "등대모형", "투명반지", "승전기", "구급상자", "황금상자", "보물지도", "죽은가지", "영혼석", "농축기", "태엽장치", "복시", "태양석판", "공무공", "야영도구", "곰인형", "돋보기", "수호비석", "가속의인장", "추출기", "밍크코트", "가득찬벨트", "망원경", "축복받은잔", "토끼의호의", "토끼머리뼈", "제단의 파편", "토끼왕의 호의", "유실물가방", "정화된 축복받은잔", "타락한 축복받은잔", "기괴한가면", "탐험가의 문장", "인형의 혼", "어둠을 삼키는 횃불", "완성된 제단석", "단련의 증표", "고치뭉치", "광학렌즈", "거머리", "독구슬", "등불", "반응성물약", "보급장비", "악마의가면", "산성이빨", "황금토템", "방화복", "혈액팩", "수호인형", "충전기", "유화그림", "보조키", "문어뱃지", "폭약", "점화석", "기계부품", "수맥탐지봉", "피의망토", "소환석", "행운의부적", "잡동사니가방", "약국회원증", "뱀술", "광학장치", "부메랑", "붉은실", "불타는인형", "자물쇠", "보존용도구", "호르몬제", "골렘석", "유대감벨트", "영혼의반지", "점액질"], "potion": ["", "화염 물약", "힘의 물약", "철의 심장", "재생 혈청", "병 속의 칼날", "폭발 물약", "수호의 축복", "전투의 서막", "거인의 피", "방어물약", "산성물약", "번식물약", "활력물약", "속사물약", "추적물약", "화염물약(대)", "회복물약", "수용물약", "만능물약", "붕괴물약", "혼돈물약", "불사물약", "절멸물약", "달콤물약", "확장물약", "발작물약", "환수물약", "환영물약", "탐욕물약", "메아리물약", "공허물약", "녹슨 쇳가루", "약화 물약", "병 속의 허상", "액체 방벽", "수비물약", "좀비물약", "증진제", "윤활제", "증폭제", "결속제", "소생물약", "태엽물약", "봉인물약", "용해물약", "이식물약"], "curse": ["", "두려움", "기만", "무력함", "죄책감", "과대망상", "공허함", "혼란함", "비현실성", "부주의", "공허의 바다"], "event": ["", "축복의 성당", "의심스러운 제단", "이상한 얼굴의 벽", "불타는 몬스터", "유랑상인", "지친 탐험가 무리", "어둠을 삼키는 자의 거래", "지친 토끼", "폐허의 제단", "강력한 적", "길드의 의뢰서", "수상한 약사", "토끼왕", "토끼왕", "토끼왕", "이상한 공간", "지혜로운 자", "버려진 가방", "어둠을 삼키는 자", "저주받은 부랑자", "일렁거리는 포탈", "인형사의 작업대", "싸우고 있는 탐험가 무리", "싸우고 있는 탐험가 무리", "복수하러 온 탐험가 무리", "끝없는 어둠", "끓어 넘치는 솥", "고요한 거울 웅덩이", "맥박치는 알 둥지", "쓰러져 꾼 꿈", "가면무도회", "탐험대의 마지막 야영지", "어둠에 물든 성당", "공허의 잠식", "공허 숭배 집회", "부서진 모듈 더미", "인형들의 무덤", "어둠을 삼키는 자의 최후", "떠돌이 대장장이", "예언의 제단", "떠돌이 수선공", "정화의 샘", "갈라지는 고치 무더기"], "encounter": ["새끼거미×8", "시체먹이×3 + 새끼거미×2", "시체먹이 + 고블린×3", "어둑곰 + 고블린×2", "돌거북 + 땅두더지×2", "독전갈×2 + 고블린×4", "어둑곰×4 + 독전갈×2", "땅두더지×3", "새끼거미×12 + 독전갈×3", "시체먹이×12 + 고블린×6", "악성좀비×3 + 시체더미×0", "여왕거미 + 새끼거미×6", "거대어둑곰 + 고블린×3", "망토고블린", "어둑술사 + 악성좀비×3 + 시체더미×0", "땅굴군주", "거대박쥐×4", "화살함정×2 + 악의×4", "거대박쥐×2 + 악의×4", "거대박쥐×3 + 악의×2", "털보거인×2 + 악의×3", "타락사제 + 불의전사×3", "거미줄직공×2 + 생존자 + 거미고치×0", "털보거인 + 타락사제 + 화살함정×2 + 악의×2", "거미줄직공 + 털보거인 + 거대박쥐×2 + 거미고치×0", "타락사제×2 + 거대박쥐×3", "살점먹이 + 시체먹이×6", "탐험대장 + 탐험가×3", "악의×4 + 멸살자", "고독한자", "흡수자 + 악의×0", "불의군주", "공허거미×3", "공허포격기×2", "어둠에삼켜진자×2", "공허방랑자×2", "공허먹이", "공허거인", "공허거미×2 + 악의", "털보거인 + 공허포격기 + 화살함정", "공허거미 + 공허방랑자 + 거대박쥐", "생존자 + 공허포격기 + 거대박쥐", "공허먹이 + 악의×2", "공허방랑자 + 화살함정×2 + 악의", "공허거인 + 공허방랑자", "공허먹이 + 공허거미 + 악의", "어둠에삼켜진자 + 공허포격기 + 악의×2", "공허거인 + 공허포격기", "공허거인 + 공허거미", "공허방랑자×2 + 공허거미", "고대의장치 + 공허거미×0 + 공허방랑자×0 + 공허포격기×0 + 공허먹이×0", "가면수집가", "변이어둑곰", "공허의태양", "공허의달", "고대의전사", "악성좀비×2 + 시체더미×0 + 여왕거미 + 새끼거미×3", "악성좀비×2 + 시체더미×0 + 거대어둑곰 + 고블린×2", "여왕거미 + 새끼거미×3 + 거대어둑곰 + 고블린×2", "탐험가×4", "이상한얼굴의벽 + 시체먹이×0", "약사×2", "약사×3", "약사×4", "토끼왕", "화난토끼왕", "어둠을삼키는자", "부랑자", "일렁거리는포탈 + 거대박쥐×0 + 화살함정×0 + 불의전사×0", "살점먹이 + 탐험대장 + 시체먹이×0 + 탐험가×0", "탐험대장 + 탐험가×0", "시체먹이×0", "공허의조각 + 뭉쳐진공허×0", "공허의왕 + 어두운기둥×0 + 공허의파편×0", "공허의태양 + 공허의달", "거대박쥐 + 화살함정 + 생존자 + 털보거인 + 악의", "고대의장치 + 시체더미 + 일렁거리는포탈 + 뭉쳐진공허 + 어두운기둥", "불도마뱀×3 + 시체먹이×3", "어둑곰 + 시체먹이×2 + 고블린×4", "어둑곰×2 + 불도마뱀×2", "어둑곰 + 불도마뱀 + 새끼거미×4", "돌거북 + 독전갈×2", "돌거북×2 + 고블린×3", "고블린족장 + 고블린×4", "불도마뱀×2 + 돌거북×2", "불의전사×2 + 악의×3", "생존자×2 + 화살함정×3", "포자벌레×3 + 거대박쥐", "불의전사 + 생존자 + 포자벌레 + 악의", "포자벌레×2 + 타락사제 + 거미줄직공×2 + 거미고치×0", "사냥곰 + 덫사냥꾼", "공허거미×3 + 악의×3", "공허분열체×2 + 작은분열체×0 + 공허거미 + 악의", "공허방랑자×3 + 거대박쥐×3 + 악의", "공허거미×2 + 공허분열체 + 작은분열체×0 + 화살함정 + 악의", "공허포격기×2 + 공허거미×2 + 악의×4", "망각의사도 + 공허거미×3 + 악의×4", "망각의사도 + 공허분열체×3 + 작은분열체×0", "공허포격기 + 공허방랑자×2 + 공허분열체 + 작은분열체×0 + 악의×3", "공허거인 + 공허방랑자×3 + 악의×3", "공허먹이×2 + 공허거미×3 + 악의×2", "어둠에삼켜진자×3 + 공허포격기×2 + 악의×2", "공허거인 + 공허포격기×3 + 공허거미", "공허먹이×2 + 망각의사도×2 + 공허분열체 + 작은분열체×0 + 악의×2", "어둠에삼켜진자 + 공허거인 + 공허거미×2 + 망각의사도", "기억도둑 + 공허방랑자×2 + 악의×0", "시체먹이×2"]};
+</script>
+<script>
+/* 런 기록 코드 해독 (2026-11-07). 규칙은 src/RunLog.eps · src/RunLogSnap.eps
+ * 브라우저(runlog_decoder.html)와 node 둘 다에서 돈다:
+ *   node tools/runlog/decode.js 코드.txt          (이름표는 같은 폴더 names.json)
+ * 입력: 게임 오버 기록 화면의 글자 줄을 글자 인식으로 뽑은 글 그대로. 쪽 제목 같은 한글 줄은 건너뜀
+ * 한 줄 = 글자 72개 + 공백 + 확인 글자 1개. 확인 글자 = (i번째 글자 값 × (2i + 1))의 합 % 32 */
+(function (root) {
+  'use strict';
+  const ALPHA = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const LINE_SYMS = 72;
+  const VAL = {};
+  for (let i = 0; i < 32; i++) VAL[ALPHA[i]] = i;
+  /* 글자 인식이 자주 헷갈리는 짝. 확인 글자가 안 맞을 때 이 안에서 한 글자씩 바꿔 봄 */
+  const LOOKALIKE = ['2Z', '5S', '8B3', '6G', 'UV', 'MN', 'KX', 'EF', 'PR', '7T', '9Q', 'DQ', 'A4'];
+  const ALT = {};
+  for (const g of LOOKALIKE) for (const c of g) ALT[c] = (ALT[c] || '') + g.replace(c, '');
+  /* 코드 글자에 없는 글자 → 와일드카드 (확인 글자로 풀 수 있음). 0·O·1·I는 일부러 뺀 글자 */
+  const WILD = '?';
+
+  function check(vals) {
+    let s = 0;
+    for (let i = 0; i < vals.length; i++) s += vals[i] * (2 * i + 1);
+    return s % 32;
+  }
+
+  /* 글 → 줄 목록 [{n, data, chk, raw}] */
+  function splitLines(text) {
+    const out = [];
+    for (const raw of text.split(/\r?\n/)) {
+      if (/[가-힣]/.test(raw)) continue; //쪽 제목·안내
+      let t = raw.toUpperCase().replace(/[^0-9A-Z?]/g, '');
+      if (t.length < 9) continue;
+      const seen = t;
+      t = t.replace(/[01OI]/g, WILD);
+      out.push({ n: out.length + 1, data: t.slice(0, -1), chk: t.slice(-1), seen: seen.slice(0, -1), raw: raw.trim() });
+    }
+    return out;
+  }
+
+  /* 한 줄 고치기. 돌려줌: {text, status: ok|fixed|guess|bad, note, alts} */
+  function repairLine(line, isLast) {
+    const d = line.data, k = line.chk;
+    const res = { n: line.n, raw: line.raw, text: d, status: 'ok', note: '', alts: [] };
+    if (!isLast && d.length !== LINE_SYMS) {
+      res.status = 'bad';
+      res.note = '글자 ' + d.length + '개 (72개여야 함). 빠지거나 더 들어간 글자가 있음';
+      return res;
+    }
+    if (d.length > LINE_SYMS) {
+      res.status = 'bad';
+      res.note = '글자 ' + d.length + '개 (72개보다 많음)';
+      return res;
+    }
+    const wild = [];
+    for (let i = 0; i < d.length; i++) if (!(d[i] in VAL)) wild.push(i);
+    const kv = k in VAL ? VAL[k] : -1;
+    const vals = Array.from(d, c => (c in VAL ? VAL[c] : 0));
+    if (wild.length > 1) {
+      res.status = 'bad';
+      res.note = '읽지 못한 글자 ' + wild.length + '개 (자리 ' + wild.map(i => i + 1).join(', ') + ')';
+      return res;
+    }
+    if (kv < 0) {
+      if (wild.length === 0) {
+        res.status = 'guess';
+        res.note = '확인 글자를 읽지 못해 검사 못 함';
+      } else {
+        res.status = 'bad';
+        res.note = '확인 글자와 다른 글자를 함께 읽지 못함';
+      }
+      return res;
+    }
+    if (wild.length === 1) {
+      const p = wild[0];
+      const need = (((kv - check(vals)) % 32) + 32) % 32; //vals[p]가 0일 때의 차이
+      const inv = modInverse(2 * p + 1);
+      const v = (need * inv) % 32;
+      res.text = d.slice(0, p) + ALPHA[v] + d.slice(p + 1);
+      res.status = 'fixed';
+      res.note = (p + 1) + '번째 글자 ' + (line.seen ? line.seen[p] : d[p]) + ' → ' + ALPHA[v];
+      return res;
+    }
+    if (check(vals) === kv) return res;
+    /* 한 글자 잘못 읽음: 헷갈리는 짝 안에서 찾기 */
+    const cands = [];
+    for (let i = 0; i < d.length; i++) {
+      for (const a of ALT[d[i]] || '') {
+        if (!(a in VAL)) continue;
+        const v2 = vals.slice();
+        v2[i] = VAL[a];
+        if (check(v2) === kv) cands.push({ text: d.slice(0, i) + a + d.slice(i + 1), note: (i + 1) + '번째 글자 ' + d[i] + ' → ' + a });
+      }
+    }
+    for (const a of ALT[k] || '') {
+      if (a in VAL && VAL[a] === check(vals)) cands.push({ text: d, note: '확인 글자 ' + k + ' → ' + a });
+    }
+    if (cands.length === 1) {
+      res.text = cands[0].text;
+      res.status = 'fixed';
+      res.note = cands[0].note;
+    } else if (cands.length > 1) {
+      res.text = cands[0].text;
+      res.status = 'guess';
+      res.note = '고칠 후보 ' + cands.length + '개 중 첫째로 해독: ' + cands.map(c => c.note).join(' / ');
+      res.alts = cands;
+    } else {
+      res.status = 'bad';
+      res.note = '확인 글자가 안 맞음. 헷갈리는 짝으로 고쳐지지 않음 (두 글자 이상 틀렸을 수 있음)';
+    }
+    return res;
+  }
+
+  function modInverse(a) {
+    for (let x = 1; x < 32; x += 2) if ((a * x) % 32 === 1) return x;
+    return 1;
+  }
+
+  /* ---------- 비트 읽기 ---------- */
+  function Reader(syms) {
+    this.s = syms;
+    this.p = 0;
+    this.total = syms.length * 5;
+  }
+  Reader.prototype.left = function () { return this.total - this.p; };
+  Reader.prototype.bits = function (n) {
+    if (this.p + n > this.total) throw new Error('END');
+    let v = 0;
+    for (let k = 0; k < n; k++) {
+      const q = this.p + k;
+      v += ((this.s[(q / 5) | 0] >> (q % 5)) & 1) * Math.pow(2, k);
+    }
+    this.p += n;
+    return v;
+  };
+
+  const ROOM = ['?', '일반', '엘리트', '우두머리', '모닥불', '상점', '이벤트', '보물'];
+  const CAMP = { 1: '휴식', 2: '모듈 보상', 4: '단련', 5: '알 부화' };
+  const SHOP = ['모듈 구매', '유물 구매', '하수인 구매', '물약 구매', '모듈 제거', '산 모듈 환불'];
+  const GAIN = ['골드', '유물', '하수인', '물약', '저주'];
+  const ENDING = ['패배', '일반 엔딩', '진 엔딩', '?'];
+  const UPG = ['하수인공', '모듈공', '소환공', '방어'];
+
+  function decodeSyms(syms, names) {
+    names = names || {};
+    const out = [];
+    const r = new Reader(syms);
+    const ver = r.bits(4);
+    const W = {
+      mod: ver >= 2 ? 9 : 7,
+      relic: ver >= 3 ? 8 : 7,
+      pot: ver >= 4 ? 6 : 5,
+      min: ver >= 5 ? 6 : 5,
+    };
+    const useNames = names.version === ver;
+    let problemAt = Infinity, ended = false;
+    const odd = (cond, at) => { if (cond && problemAt === Infinity) problemAt = at; };
+    const has = (table, v) => !useNames || !names[table] || (v > 0 && v < names[table].length && names[table][v] !== '');
+    const nm = (table, v) => {
+      if (!useNames || !names[table]) return String(v);
+      const s = names[table][v];
+      return s ? v + ' ' + s : String(v);
+    };
+    const seed = r.bits(20);
+    const diff = r.bits(2);
+    out.push('판 ' + ver + ' 시드 ' + seed + ' 난이도 ' + diff);
+    if (!useNames) out.push('(이름표는 판 ' + names.version + '용이라 번호만 적음)');
+    if (ver < 2) out.push('(판 1 기록은 지원하지 않음)');
+    let act = 1, floor = 0, lastVal = 0;
+    const gainVal = (kind) => {
+      const w = [10, W.relic, W.min, W.pot, 4][kind];
+      const v = r.bits(w === undefined ? 4 : w);
+      lastVal = v;
+      const t = ['', 'relic', 'minion', 'potion', 'curse'][kind];
+      return (GAIN[kind] || '종류' + kind) + ' ' + (t ? nm(t, v) : v);
+    };
+    const state = (ind) => {
+      const hp = r.bits(10), mhp = r.bits(10), gold = r.bits(11);
+      const up = [r.bits(5), r.bits(5), r.bits(5), r.bits(5)];
+      const lim = r.bits(4), n = r.bits(4);
+      out.push(ind + '체력 ' + hp + '/' + mhp + ' 골드 ' + gold + ' | 영구 업그레이드 ' + UPG.map((u, i) => u + up[i]).join(' ') + ' | 출전한도 ' + lim + ' 하수인 ' + n);
+      for (let i = 0; i < n; i++) {
+        const t = r.bits(W.min), bench = r.bits(1), h4 = r.bits(13), atk = r.bits(7), arm = r.bits(5), cd = r.bits(4);
+        odd(!has('minion', t), r.p);
+        const mods = [];
+        for (let k = 0; k < 4; k++) {
+          const id = r.bits(W.mod);
+          if (id === 0) { mods.push('-'); continue; }
+          odd(!has('module', id), r.p);
+          let s = nm('module', id);
+          if (r.bits(1) === 1) {
+            const g = r.bits(7), f = r.bits(W.mod);
+            if (g) s += ' 성장' + g;
+            if (f) s += ' +합성 ' + nm('module', f);
+          }
+          mods.push(s);
+        }
+        out.push(ind + '  ' + nm('minion', t) + (bench ? ' (보관)' : '') + ' 체력+' + (h4 / 4) + ' 공+' + atk + ' 방+' + arm + ' 주기-' + cd + ' | ' + mods.join(' / '));
+      }
+    };
+    try {
+      while (r.left() >= 4) {
+        const at = r.p;
+        const tag = r.bits(4);
+        const P = '[' + at + '] ';
+        if (tag === 0) { odd(r.left() >= 5, at); break; }
+        if (tag === 1) {
+          const lane = r.bits(1), type = r.bits(3), atk = r.bits(8), hp = r.bits(ver >= 2 ? 12 : 10);
+          let tail = '';
+          if (ver >= 2) tail = ' 방' + r.bits(8) + ' 수' + r.bits(4);
+          floor += 1;
+          odd(type === 0 || floor > 15, at);
+          out.push(P + '=== ' + act + '막 ' + floor + '층 방 길' + (lane ? 'B' : 'A') + ' ' + (ROOM[type] || type) + ' | 덱 공' + atk + ' 체' + hp + tail);
+        } else if (tag === 2) {
+          const enc = r.bits(7), lost = r.bits(8), t = r.bits(6);
+          odd(useNames && enc >= names.encounter.length, at);
+          out.push(P + '전투 승리 편성' + nm('encounter', enc) + ' 잃은체력' + lost + ' 시간' + t * 10 + '초');
+        } else if (tag === 3) {
+          const kind = r.bits(1), n = r.bits(3), w = kind ? W.min : W.mod;
+          const ids = [];
+          odd(n === 0 || n > 4, at);
+          for (let i = 0; i < n; i++) { const v = r.bits(w); odd(!has(kind ? 'minion' : 'module', v), at); ids.push(nm(kind ? 'minion' : 'module', v)); }
+          out.push(P + '후보 ' + (kind ? '하수인' : '모듈') + ' [' + ids.join(', ') + ']');
+        } else if (tag === 4) {
+          const kind = r.bits(1), idx = r.bits(3);
+          out.push(P + '고름 ' + (kind ? '하수인' : '모듈') + ' ' + idx + '번째');
+        } else if (tag === 5 || tag === 6) {
+          const gk = r.bits(3);
+          odd(gk > 4, at);
+          const gv = gainVal(gk);
+          odd(gk > 0 && gk < 5 && !has(['', 'relic', 'minion', 'potion', 'curse'][gk], lastVal), at);
+          out.push(P + (tag === 5 ? '얻음 ' : '잃음 ') + gv);
+        } else if (tag === 7) {
+          const ev = r.bits(6);
+          odd(!has('event', ev), at);
+          out.push(P + '이벤트 ' + nm('event', ev));
+        } else if (tag === 8) {
+          out.push(P + '선택지 (' + (r.bits(2) + 1) + ')');
+        } else if (tag === 9) {
+          const pot = r.bits(1);
+          out.push(P + '이벤트에서 고름 ' + (pot ? '물약 ' + nm('potion', r.bits(W.pot)) : '모듈 ' + nm('module', r.bits(W.mod))));
+        } else if (tag === 10) {
+          const cat = r.bits(3);
+          odd(cat > 5, at);
+          if (cat === 5) { out.push(P + '상점 산 모듈 환불'); continue; }
+          const id = r.bits(W.mod), price = r.bits(9);
+          const t = ['module', 'relic', 'minion', 'potion', 'module'][cat];
+          out.push(P + '상점 ' + (SHOP[cat] || cat) + ' ' + (t ? nm(t, id) : id) + ' 가격' + price);
+        } else if (tag === 11) {
+          const c = r.bits(3);
+          odd(!(c in CAMP), at);
+          out.push(P + '모닥불 ' + (CAMP[c] || c));
+        } else if (tag === 12) {
+          const pk = r.bits(W.pot);
+          odd(!has('potion', pk), at);
+          out.push(P + '물약 사용 ' + nm('potion', pk));
+        } else if (tag === 13) {
+          out.push(P + '##### ' + act + '막 끝');
+          state('    ');
+          act += 1;
+          floor = 0;
+        } else if (tag === 14) {
+          const ending = r.bits(2), enc = r.bits(7), score = r.bits(13), kills = r.bits(10);
+          odd(ending > 2, at);
+          out.push(P + '##### 런 끝: ' + ENDING[ending] + ' 마지막 편성' + nm('encounter', enc) + ' 점수' + score + ' 처치' + kills);
+          state('    ');
+          const nr = r.bits(8), rel = [];
+          for (let i = 0; i < nr; i++) rel.push(nm('relic', r.bits(W.relic)));
+          out.push('    유물 ' + nr + '개: ' + rel.join(', '));
+          const cur = [];
+          for (let k = 1; k <= 10; k++) { const c = r.bits(3); if (c) cur.push(nm('curse', k) + '×' + c); }
+          out.push('    저주: ' + (cur.join(', ') || '없음'));
+          const np = r.bits(3), pots = [];
+          for (let i = 0; i < np; i++) pots.push(nm('potion', r.bits(W.pot)));
+          out.push('    물약 칸 ' + np + ': ' + pots.join(', '));
+          ended = true;
+          odd(r.left() >= 10, r.p);
+          break;
+        } else if (tag === 15) {
+          const slot = r.bits(4), t = r.bits(W.min);
+          odd(slot > 11 || !(t === 0 || has('minion', t)), at);
+          if (t === 0) { out.push(P + '  칸' + slot + ' 비어 있음'); continue; }
+          const h4 = r.bits(13), atk = r.bits(7), arm = r.bits(5), cd = r.bits(4);
+          out.push(P + '  칸' + slot + ' ' + nm('minion', t) + ' 체력+' + (h4 / 4) + ' 공+' + atk + ' 방+' + arm + ' 주기-' + cd);
+        }
+      }
+    } catch (e) {
+      if (e.message !== 'END') throw e;
+      out.push('(기록이 여기서 끊김: 글자가 모자람)');
+    }
+    out.problemAt = problemAt;
+    out.ended = ended;
+    return out;
+  }
+
+  /* 전체: 글 → {lines: 줄별 결과, log: 해독 줄들, ok} */
+  /* 후보가 여럿인 줄: 후보마다 뒤 줄까지 붙여 해독해 보고, 이상한 기록이 가장 늦게 나오는 후보를 고름 */
+  function score(syms, names) {
+    let o;
+    try { o = decodeSyms(syms, names); } catch (e) { return -1; }
+    return o.problemAt === Infinity ? syms.length * 5 + (o.ended ? 1 : 0) : o.problemAt;
+  }
+  function pickByDecode(fixed, names) {
+    const symsOf = t => Array.from(t, c => (c in VAL ? VAL[c] : 0));
+    for (let i = 0; i < fixed.length; i++) {
+      const f = fixed[i];
+      if (f.status !== 'guess' || !f.alts.length) continue;
+      const before = [].concat(...fixed.slice(0, i).map(x => symsOf(x.text)));
+      const after = [].concat(...fixed.slice(i + 1).map(x => symsOf(x.text)));
+      const scored = f.alts.map(c => ({ c, s: score(before.concat(symsOf(c.text), after), names) }));
+      scored.sort((a, b) => b.s - a.s);
+      const best = scored[0];
+      const tied = scored.filter(x => x.s === best.s);
+      f.text = best.c.text;
+      if (tied.length === 1) {
+        f.status = 'fixed';
+        f.note = best.c.note + ' (후보 ' + scored.length + '개 중 해독이 맞는 것)';
+      } else {
+        f.note = '후보 ' + tied.length + '개가 똑같이 그럴듯함. ' + best.c.note + '로 해독함. 다른 후보: ' + tied.slice(1).map(x => x.c.note).join(' / ');
+      }
+    }
+  }
+
+  function decodeText(text, names) {
+    const lines = splitLines(text);
+    const fixed = lines.map((l, i) => repairLine(l, i === lines.length - 1));
+    if (names && names.version) pickByDecode(fixed, names);
+    const syms = [];
+    let stopAt = -1;
+    for (const f of fixed) {
+      if (f.status === 'bad') { stopAt = f.n; break; }
+      for (const c of f.text) syms.push(VAL[c]);
+    }
+    let log = [];
+    if (syms.length) log = decodeSyms(syms, names);
+    if (stopAt > 0) log.push('(' + stopAt + '번째 줄을 고치지 못해 그 앞까지만 해독함)');
+    return { lines: fixed, log: log, ok: stopAt < 0 && fixed.every(f => f.status !== 'guess') };
+  }
+
+  const api = { ALPHA, LINE_SYMS, check, splitLines, repairLine, decodeSyms, decodeText };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.RunLogDecode = api;
+
+  if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
+    const fs = require('fs'), path = require('path');
+    const file = process.argv[2];
+    const text = fs.readFileSync(file && file !== '-' ? file : 0, 'utf8');
+    let names = {};
+    try { names = JSON.parse(fs.readFileSync(path.join(__dirname, 'names.json'), 'utf8')); } catch (e) { /* 이름표 없으면 번호만 */ }
+    const res = decodeText(text, names);
+    for (const l of res.lines) if (l.status !== 'ok') console.log('줄 ' + l.n + ' [' + l.status + '] ' + l.note);
+    console.log(res.log.join('\n'));
+  }
+})(this);
+
+</script>
+<script>
+(function () {
+  const D = window.RunLogDecode;
+  const SAMPLE = "1/1쪽  시드 249107  (1) 이전 (2) 다음 (X) 점수표\nQBNTM4522222AYL2222222B26JJUEQJ7JKB5Y2W24WA2FG6F63Q6FR6ZJKM8N2YAQL2232Q6 S\n2N2EJ2B360E2H2222A2N2EJ2B363E2H2222SK9L8BM2N2YAQL2232GA2N2EJ2B363E2H2222 F\nA23SA2A2222N4K2 G";
+  const LABEL = { ok: '정상', fixed: '고침', guess: '확인 필요', bad: '고치지 못함' };
+  const $ = id => document.getElementById(id);
+  const src = $('src'), out = $('out'), linesEl = $('lines'), sum = $('sum'), toast = $('toast'), exNote = $('ex-note');
+  let lastLog = '';
+
+  function esc(s) { return s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]); }
+  function colorCode(t) {
+    let h = '';
+    for (let i = 0; i < t.length; i += 8) h += '<span class="g' + ((i / 8) % 2) + '">' + esc(t.slice(i, i + 8)) + '</span>';
+    return h;
+  }
+  function render() {
+    const text = src.value;
+    if (!text.trim()) {
+      linesEl.innerHTML = '';
+      sum.innerHTML = '';
+      out.innerHTML = '<span class="p">기록 코드를 붙여넣으면 여기에 해독 결과가 나옵니다.</span>';
+      lastLog = '';
+      return;
+    }
+    const res = D.decodeText(text, RUNLOG_NAMES);
+    const count = { ok: 0, fixed: 0, guess: 0, bad: 0 };
+    linesEl.innerHTML = res.lines.map(l => {
+      count[l.status]++;
+      const msg = l.status === 'ok' ? '<span class="code">' + colorCode(l.text.slice(0, 16)) + '…</span>' : esc(l.note);
+      return '<li><span class="n">' + l.n + '줄</span><span class="chip ' + l.status + '">' + LABEL[l.status] + '</span><span class="msg">' + msg + '</span></li>';
+    }).join('') || '<li><span></span><span></span><span class="msg">코드 줄을 찾지 못했습니다. 72글자 줄과 끝의 확인 글자가 함께 들어 있는지 확인하세요.</span></li>';
+    sum.innerHTML = '<span class="chip">' + res.lines.length + '줄</span>' +
+      ['fixed', 'guess', 'bad'].filter(k => count[k]).map(k => '<span class="chip ' + k + '">' + LABEL[k] + ' ' + count[k] + '</span>').join('');
+    lastLog = res.log.join('\n');
+    out.innerHTML = res.log.map(s => {
+      const e = esc(s);
+      if (/^\[\d+\] (===|#####)/.test(s) || /^판 /.test(s)) return '<span class="h">' + e + '</span>';
+      if (/^\(/.test(s)) return '<span class="e">' + e + '</span>';
+      return e.replace(/^(\[\d+\])/, '<span class="p">$1</span>');
+    }).join('\n');
+  }
+  function setText(t, isSample) {
+    src.value = t;
+    exNote.hidden = !isSample;
+    render();
+  }
+  src.addEventListener('input', () => { exNote.hidden = true; render(); });
+  $('btn-sample').addEventListener('click', () => setText(SAMPLE, true));
+  $('btn-clear').addEventListener('click', () => { setText('', false); src.focus(); });
+  $('btn-copy').addEventListener('click', () => {
+    if (!lastLog) return;
+    const done = m => { toast.textContent = m; setTimeout(() => { toast.textContent = ''; }, 2500); };
+    const fallback = () => {
+      const r = document.createRange(); r.selectNodeContents(out);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      done('복사가 막혀 있어 결과를 선택해 두었습니다. Ctrl+C로 복사하세요.');
+    };
+    try {
+      navigator.clipboard.writeText(lastLog).then(() => done('복사했습니다. AI 대화창에 붙여넣으세요.'), fallback);
+    } catch (e) { fallback(); }
+  });
+  setText(SAMPLE, true);
+})();
+</script>
+</body>
+</html>
