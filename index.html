@@ -217,7 +217,9 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
     const res = { n: line.n, raw: line.raw, text: d, status: 'ok', note: '', alts: [] };
     if (!isLast && d.length !== LINE_SYMS) {
       res.status = 'bad';
-      res.note = '글자 ' + d.length + '개 (72개여야 함). 빠지거나 더 들어간 글자가 있음';
+      res.note = d.length < LINE_SYMS * 0.9
+        ? '글자 ' + d.length + '개로 짧음. 기록의 마지막 줄이 중간에 들어온 것 같음 (쪽 순서가 바뀌었거나 쪽이 빠졌을 수 있음)'
+        : '글자 ' + d.length + '개 (72개여야 함). 빠지거나 더 들어간 글자가 있음';
       return res;
     }
     if (d.length > LINE_SYMS) {
@@ -1136,12 +1138,23 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     return { canvas: c, img: { w: c.width, h: c.height, data: d.data } };
   }
   const tick = () => new Promise(r => setTimeout(r, 0));
+  /* 사진마다 읽은 줄을 따로 모아, 짧은 줄(기록의 끝)로 끝나는 사진이 맨 뒤에 오도록 쪽 순서를 바로잡음. 옮긴 사진 번호를 돌려줌 */
+  function fixOrder(pages) {
+    const isEnd = p => p.lines.length && p.lines[p.lines.length - 1].text.split(' ')[0].length < OCR_LINE * 0.9;
+    const ends = pages.map((p, i) => isEnd(p) ? i : -1).filter(i => i >= 0);
+    if (ends.length !== 1 || ends[0] === pages.length - 1) return -1;
+    const k = ends[0];
+    pages.push(pages.splice(k, 1)[0]);
+    return k;
+  }
+  const OCR_LINE = 72;
   async function readFiles(files) {
     files = [...files].filter(f => /^image\//.test(f.type));
     if (!files.length || busy) return;
     busy = true;
     const texts = [];
-    let bad = 0;
+    let bad = 0, moved = -1;
+    const pages = [];
     try {
       for (let fi = 0; fi < files.length; fi++) {
         const pre = files.length > 1 ? (fi + 1) + '쪽 ' : '';
@@ -1149,19 +1162,29 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
         await tick();
         const { img } = await toImageData(files[fi]);
         const { im, lines } = OCR.prepareImage(img);
+        const page = { fi, lines: [] };
         for (let li = 0; li < lines.length; li++) {
           ocrSt.textContent = pre + (li + 1) + '/' + lines.length + '줄 읽는 중';
           await tick();
           const r = OCR.readOne(im, lines[li], TPL);
           if (!r) continue;
-          texts.push(r.text);
+          page.lines.push(r);
           if (r.fixed < 0) bad++;
         }
+        pages.push(page);
       }
+      moved = fixOrder(pages);
+      if (moved >= 0) { //미리보기 순서도 같이
+        const q = queue.splice(moved, 1)[0];
+        if (q) queue.push(q);
+      }
+      for (const pg of pages) for (const r of pg.lines) texts.push(r.text);
       if (!texts.length) {
         ocrSt.textContent = '코드 줄을 찾지 못했습니다. 기록 보기 화면의 PC 스크린샷인지 확인하세요.';
       } else {
-        ocrSt.textContent = texts.length + '줄 읽음' + (bad ? ' · ' + bad + '줄은 확인 글자가 맞지 않습니다. 아래 줄 검사에서 확인하세요.' : '');
+        ocrSt.textContent = texts.length + '줄 읽음' +
+          (moved >= 0 ? ' · ' + (moved + 1) + '쪽으로 올린 사진이 기록의 마지막 쪽이라 맨 뒤로 옮겼습니다' : '') +
+          (bad ? ' · ' + bad + '줄은 확인 글자가 맞지 않습니다. 아래 코드 확인 결과를 보세요' : '');
         setText(texts.join('\n'));
       }
     } catch (e) {
