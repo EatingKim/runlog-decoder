@@ -68,12 +68,29 @@ textarea { width: 100%; box-sizing: border-box; min-height: 180px; resize: verti
 .cl .why { grid-column: 2; color: var(--dust); overflow-wrap: anywhere; }
 .cl.fixed .n { color: var(--ok); } .cl.guess .n, .cl.guess .why { color: var(--warn); } .cl.bad .n, .cl.bad .why { color: var(--bad); }
 .tally { font-size: 0.8rem; color: var(--dust); }
-.drop { border: 1px dashed var(--seam); padding: 14px; display: grid; gap: 6px; text-align: center; color: var(--dust); font-size: 0.85rem; }
-.drop.over { border-color: var(--void); color: var(--bone); }
-.drop b { color: var(--bone); font-weight: 600; }
-.drop label { color: var(--void); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.drop label:focus-within { outline: 2px solid var(--void); outline-offset: 2px; }
+/* 사진 올리기 (맨 위, 화면 폭 전체) */
+.upload { margin-top: 18px; border: 1px dashed var(--seam); background: var(--rock); padding: 16px; display: grid; gap: 14px; }
+.upload.over { border-color: var(--void); }
+.up-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.up-head p { margin: 0; color: var(--dust); font-size: 0.9rem; }
+.up-head p b { color: var(--bone); font-weight: 600; }
+.up-head label { color: var(--void); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.up-head input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.up-head label:focus-within { outline: 2px solid var(--void); outline-offset: 2px; }
+.up-act { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button.go { background: var(--void); border-color: var(--void); color: var(--ground); font-weight: 800; padding: 7px 22px; font-size: 0.95rem; }
+button.go:hover { filter: brightness(1.1); color: var(--ground); background: var(--void); }
+button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.thumbs .place { grid-column: 1 / -1; border: 1px dashed var(--seam); min-height: 120px; display: flex; align-items: center; justify-content: center; color: var(--dust); font-size: 0.9rem; text-align: center; padding: 12px; }
+.thumb { background: var(--ground); border: 1px solid var(--seam); display: grid; grid-template-rows: auto auto; }
+.thumb .img { aspect-ratio: 16 / 7; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.thumb img { max-width: 100%; max-height: 100%; display: block; }
+.thumb .bar2 { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 0.8rem; }
+.thumb .ord { font-weight: 800; color: var(--bone); margin-right: auto; font-variant-numeric: tabular-nums; }
+.thumb .nm { color: var(--dust); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.thumb button { padding: 2px 8px; font-size: 0.78rem; }
+.empty-up { color: var(--dust); font-size: 0.85rem; margin: 0; }
 .ocr-status { font-size: 0.8rem; color: var(--dust); min-height: 1.2em; }
 .ocr { display: grid; gap: 10px; }
 .ocr-row { display: grid; gap: 3px; }
@@ -148,22 +165,29 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
   </div>
   <div class="toast" id="toast" role="status"></div>
 
+  <section class="upload" id="drop" aria-labelledby="up-title">
+    <div class="up-head">
+      <p id="up-title"><b>기록 화면 스크린샷</b>을 쪽 순서대로 끌어다 놓거나 붙여넣기(Ctrl+V), 또는 <label>파일 고르기<input type="file" id="file" accept="image/*" multiple></label></p>
+      <div class="up-act">
+        <button type="button" id="btn-unq" disabled>사진 모두 빼기</button>
+        <button type="button" class="go" id="btn-go" disabled>변환</button>
+      </div>
+    </div>
+    <div class="thumbs" id="thumbs"></div>
+    <span class="ocr-status" id="ocr-status" role="status"></span>
+  </section>
+
   <div class="hero" id="hero"></div>
 
   <div class="cols">
     <aside>
-      <div class="drop" id="drop">
-        <span><b>기록 화면 스크린샷</b>을 여기에 끌어다 놓거나 붙여넣기(Ctrl+V)</span>
-        <span>또는 <label>파일 고르기<input type="file" id="file" accept="image/*" multiple></label></span>
-        <span class="ocr-status" id="ocr-status" role="status"></span>
-      </div>
       <div class="ocr" id="ocr" hidden></div>
       <div>
         <p class="label">기록 코드</p>
         <textarea id="src" spellcheck="false" autocomplete="off" aria-label="기록 코드"></textarea>
       </div>
       <ul class="howto">
-        <li>게임 오버의 기록 보기 화면을 쪽마다 PC 스크린샷으로 찍어 위에 올립니다. 쪽 순서대로 올리면 됩니다.</li>
+        <li>게임 오버의 기록 보기 화면을 쪽마다 PC 스크린샷으로 찍어 위에 올리고 변환을 누릅니다. 순서는 사진 아래 화살표로 바꿉니다.</li>
         <li>휴대폰 사진은 잘 못 읽습니다. 그럴 때는 구글 렌즈로 글자를 복사해 아래 칸에 붙입니다.</li>
         <li>지도를 보거나, AI용 글 복사로 AI에 넘깁니다. 처리는 이 브라우저 안에서만 합니다.</li>
       </ul>
@@ -1206,15 +1230,57 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     }
     busy = false;
   }
-  $('file').addEventListener('change', e => { readFiles(e.target.files); e.target.value = ''; });
+  /* 올린 사진 줄: 변환을 누를 때까지 모아 둠 */
+  const queue = [];
+  function addFiles(list) {
+    const imgs = [...list].filter(f => /^image\//.test(f.type));
+    for (const f of imgs) queue.push({ file: f, url: URL.createObjectURL(f) });
+    if (imgs.length) ocrSt.textContent = '';
+    drawQueue();
+  }
+  function drawQueue() {
+    const box = $('thumbs');
+    box.innerHTML = queue.length ? '' : '<div class="place">여기에 스크린샷을 놓으세요. 여러 장을 한꺼번에 놓아도 됩니다.</div>';
+    queue.forEach((q, i) => {
+      const el = document.createElement('div');
+      el.className = 'thumb';
+      el.innerHTML = '<div class="img"><img alt=""></div><div class="bar2"><span class="ord">' + (i + 1) + '쪽</span><span class="nm"></span>' +
+        '<button type="button" data-a="l" aria-label="앞으로"' + (i ? '' : ' disabled') + '>←</button>' +
+        '<button type="button" data-a="r" aria-label="뒤로"' + (i < queue.length - 1 ? '' : ' disabled') + '>→</button>' +
+        '<button type="button" data-a="x">빼기</button></div>';
+      el.querySelector('img').src = q.url;
+      el.querySelector('.nm').textContent = q.file.name || '붙여넣은 사진';
+      el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        if (busy) return;
+        const a = b.dataset.a;
+        if (a === 'x') { URL.revokeObjectURL(q.url); queue.splice(i, 1); }
+        else { const j = a === 'l' ? i - 1 : i + 1; [queue[i], queue[j]] = [queue[j], queue[i]]; }
+        drawQueue();
+      }));
+      box.appendChild(el);
+    });
+    $('btn-go').disabled = !queue.length || busy;
+    $('btn-unq').disabled = !queue.length || busy;
+    if (!queue.length && !ocrSt.textContent) ocrSt.textContent = '';
+  }
+  $('btn-go').addEventListener('click', async () => {
+    if (!queue.length || busy) return;
+    $('btn-go').disabled = $('btn-unq').disabled = true;
+    await readFiles(queue.map(q => q.file));
+    drawQueue();
+  });
+  $('btn-unq').addEventListener('click', () => { queue.splice(0).forEach(q => URL.revokeObjectURL(q.url)); ocrSt.textContent = ''; drawQueue(); });
+  $('file').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
   drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); readFiles(e.dataTransfer.files); });
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); });
   document.addEventListener('paste', e => {
+    if (e.target === src) return; //코드 칸에 글을 붙일 때는 그대로
     const files = [...(e.clipboardData ? e.clipboardData.files : [])];
-    if (files.length) { e.preventDefault(); readFiles(files); }
+    if (files.length) { e.preventDefault(); addFiles(files); }
   });
 
+  drawQueue();
   setText(SAMPLE, true);
 })();
 </script>
