@@ -377,6 +377,7 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
   const GAIN = ['골드', '유물', '하수인', '물약', '저주'];
   const ENDING = ['패배', '일반 엔딩', '진 엔딩', '?'];
   const UPG = ['하수인공', '모듈공', '소환공', '방어'];
+  const DIFF = ['쉬움', '보통', '어려움', '?']; //Player.DIFF_EASY 0 · DIFF_NORMAL 1 · DIFF_HARD 2
 
   function decodeSyms(syms, names) {
     names = names || {};
@@ -401,10 +402,10 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
     };
     const seed = r.bits(20);
     const diff = r.bits(2);
-    out.push('판 ' + ver + ' 시드 ' + seed + ' 난이도 ' + diff);
+    out.push('기록코드 버전: V' + ver + ' · 시드 ' + seed + ' · 난이도 ' + DIFF[diff]);
     ev.push({ type: 'head', ver, seed, diff, named: useNames });
-    if (!useNames) out.push('(이름표는 판 ' + names.version + '용이라 번호만 적음)');
-    if (ver < 2) out.push('(판 1 기록은 지원하지 않음)');
+    if (!useNames) out.push('(이름표는 기록코드 버전 V' + names.version + '용이라 번호만 적음)');
+    if (ver < 2) out.push('(기록코드 버전 V1은 지원하지 않음)');
     let act = 1, floor = 0, lastVal = 0;
     const gainVal = (kind) => {
       const w = [10, W.relic, W.min, W.pot, 4][kind];
@@ -605,7 +606,7 @@ const RUNLOG_NAMES = {"version": 6, "module": ["", "부식 광선", "연발 사�
     return { lines: fixed, log: log, ev: log.ev || [], stopAt: stopAt, ok: stopAt < 0 && fixed.every(f => f.status !== 'guess') };
   }
 
-  const api = { ROOM, CAMP, SHOP, GAIN, ENDING, UPG, ALPHA, LINE_SYMS, check, splitLines, repairLine, decodeSyms, decodeText };
+  const api = { DIFF, ROOM, CAMP, SHOP, GAIN, ENDING, UPG, ALPHA, LINE_SYMS, check, splitLines, repairLine, decodeSyms, decodeText };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RunLogDecode = api;
 
@@ -1331,15 +1332,15 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     if (!head) { $('hero').innerHTML = '<p class="empty">해독할 수 있는 줄이 없습니다.</p>'; return; }
     const lastRoom = [...res.ev].reverse().find(e => e.type === 'room');
     const f = [];
-    f.push('<li>난이도 <b>' + head.diff + '</b></li>');
+    f.push('<li>난이도 <b>' + (D.DIFF[head.diff] || head.diff) + '</b></li>');
     if (lastRoom) f.push('<li>도달 <b>' + lastRoom.act + '막 ' + lastRoom.floor + '층</b></li>');
     if (m.end) {
       f.push('<li class="' + (m.end.ending ? 'win' : 'lose') + '">결과 <b>' + D.ENDING[m.end.ending] + '</b></li>');
       f.push('<li>점수 <b>' + m.end.score + '</b></li><li>처치 <b>' + m.end.kills + '</b></li>');
     }
-    f.push('<li>기록 판 <b>' + head.ver + '</b></li>');
+    f.push('<li>기록코드 버전: <b>V' + head.ver + '</b></li>');
     $('hero').innerHTML = '<p class="seed"><small>시드</small>' + head.seed + '</p><ul class="facts">' + f.join('') + '</ul>' +
-      (named ? '' : '<p class="example">이 기록은 판 ' + head.ver + '이라 지금 이름표(판 ' + N.version + ')와 번호가 달라 이름 없이 번호만 보여줍니다.</p>');
+      (named ? '' : '<p class="example">이 기록은 기록코드 버전 V' + head.ver + '이라 지금 이름표(V' + N.version + ')와 번호가 달라 이름 없이 번호만 보여줍니다.</p>');
   }
   function setText(t) { src.value = t; render(); }
   $('btn-check').addEventListener('click', render);
