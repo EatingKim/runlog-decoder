@@ -69,6 +69,10 @@ textarea { width: 100%; box-sizing: border-box; min-height: calc(1.6em * 3 + 22p
 .save-st:empty { display: none; }
 .save-st.ok { color: var(--ok); } .save-st.warn { color: var(--warn); } .save-st.bad { color: var(--bad); }
 .code-in { margin-top: 12px; }
+.code-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; margin-bottom: 8px; }
+.code-head .label { margin: 0; flex: 1 1 320px; }
+.code-act { display: flex; gap: 8px; }
+.code-act button { border-radius: 999px; }
 .code-in .label { margin-bottom: 6px; }
 .code-st { font-size: 0.82rem; color: var(--dust); margin-top: 6px; display: grid; gap: 2px; }
 .code-st .ok { color: var(--ok); } .code-st .warn { color: var(--warn); } .code-st .bad { color: var(--bad); }
@@ -313,10 +317,6 @@ button.go { border-radius: 12px; padding: 8px 24px; }
 <div class="wrap">
   <div class="top">
     <div class="brand">상실의 동굴 · <b>런 기록 해독기</b></div>
-    <div class="tools">
-      <button type="button" id="btn-check">코드 확인</button>
-      <button type="button" id="btn-clear">지우기</button>
-    </div>
   </div>
 
   <section class="intake" id="intake">
@@ -346,7 +346,13 @@ button.go { border-radius: 12px; padding: 8px 24px; }
   </section>
 
   <div class="code-in">
-    <p class="label">기록 코드 <span class="dim">· 변환하면 여기에 채워집니다. 구글 렌즈 등으로 뽑은 글을 붙였다면 위의 코드 확인을 누르세요</span></p>
+    <div class="code-head">
+      <p class="label">기록 코드 <span class="dim">· 변환하면 여기에 채워집니다. 구글 렌즈 등으로 뽑은 글을 직접 붙였거나 글자를 고쳤다면 "이 코드로 해독"을 누르세요</span></p>
+      <div class="code-act">
+        <button type="button" id="btn-clear">지우기</button>
+        <button type="button" class="main" id="btn-check">이 코드로 해독</button>
+      </div>
+    </div>
     <textarea id="src" rows="4" spellcheck="false" autocomplete="off" aria-label="기록 코드"></textarea>
     <div class="code-st" id="code-st" role="status"></div>
   </div>
