@@ -1208,9 +1208,11 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   /* ---------- 시트 미리보기: 저장하면 구글 시트에 들어갈 줄들 (아직 보내지 않음) ---------- */
   const RESULT = ['패배', '일반 엔딩', '진 엔딩', '?'];
   const txtN = (t, v) => (named && N[t] && N[t][v]) || (v ? '#' + v : '');
-  /* 런 번호: 저장할 때 시트(앱스 스크립트)가 000001부터 차례로 붙임 (사이트는 몇 개 저장됐는지 모름).
+  /* 런 번호 = "V버전-시드-저장 횟수" (사용자 2026-11-08). 저장 횟수는 그 시드가 몇 번째로 저장되는지이고,
+   * 버전이 달라도 시드가 같으면 이어서 셈 (V6-233377-001 → V7-233377-002). 세 자리, 1000을 넘으면 자릿수가 늘어남.
+   * 저장할 때 시트(앱스 스크립트)가 그 시드의 저장 수를 세어 붙임 (사이트는 몇 번 저장됐는지 모름).
    * 기록 지문: 시드 + 기록 코드 전체의 해시 6글자. 같은 기록은 늘 같은 지문 → 같은 기록을 두 번 저장하지 않게 시트가 확인 */
-  const RUN_NO_EXAMPLE = '000001';
+  const runNo = (ver, seed, n) => 'V' + ver + '-' + seed + '-' + String(n).padStart(3, '0');
   function runId(seed, code) {
     let h = 2166136261;
     for (let i = 0; i < code.length; i++) { h ^= code.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
@@ -1224,12 +1226,12 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const end = ev.find(e => e.type === 'end') || null;
     const code = res.lines.map(l => l.text).join('');
     const finger = runId(head.seed, code);
-    const id = RUN_NO_EXAMPLE; //미리보기에서는 예시 번호
+    const id = runNo(head.ver, head.seed, 1); //미리보기에서는 저장 횟수를 1로 둔 예시
     const rooms = ev.filter(e => e.type === 'room'), last = rooms[rooms.length - 1];
     const battles = ev.filter(e => e.type === 'battle');
     const st = end && end.state;
     const run = [
-      ['런 번호', id + ' (저장할 때 시트가 차례로 붙임, 지금은 예시)'], ['저장 시각', '(저장할 때 시각)'], ['기록 지문', finger + ' (같은 기록 두 번 저장 막기)'], ['닉네임', '(받기로 하면)'],
+      ['런 번호', id + ' (버전-시드-그 시드의 저장 횟수. 횟수는 저장할 때 시트가 정함, 지금은 예시)'], ['저장 시각', '(저장할 때 시각)'], ['기록 지문', finger + ' (같은 기록 두 번 저장 막기)'], ['닉네임', '(받기로 하면)'],
       ['기록코드 버전', 'V' + head.ver], ['시드', head.seed], ['난이도', D.DIFF[head.diff] || head.diff],
       ['결과', end ? RESULT[end.ending] : '(기록이 끊김)'], ['도달', last ? last.act + '막 ' + last.floor + '층' : ''],
       ['마지막 전투', end ? txtN('encounter', end.enc) : ''], ['점수', end ? end.score : ''], ['처치', end ? end.kills : ''],
