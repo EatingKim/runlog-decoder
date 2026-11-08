@@ -358,6 +358,40 @@ button.go { border-radius: 12px; padding: 8px 24px; }
 .sub { font-size: 0.78rem; }
 .cnt { font-size: 0.66rem; padding: 0 7px; }
 details.raw summary { font-size: 0.78rem; }
+/* 백과사전 (사용자 2026-11-08 "백과사전도 같이 넣어주고, 해독기에서 유물·모듈을 누르면 넘어가게") */
+[hidden] { display: none !important; }
+.top { align-items: center; }
+.views { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--seam); border-radius: 999px; background: var(--rock); }
+.views button { border: 0; border-radius: 999px; padding: 4px 14px; font-size: 0.8rem; font-weight: 700; color: var(--dust); }
+.views button:hover { color: var(--bone); background: transparent; }
+.views button.on { background: var(--void); color: var(--ground); }
+[data-ency] { cursor: pointer; }
+[data-ency]:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pop .to-ency { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--seam); font-size: 0.78rem; color: var(--void); text-decoration: none; }
+.ency { padding-top: 14px; display: grid; gap: 10px; }
+.ency-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.ency-cats { display: flex; flex-wrap: wrap; gap: 4px; }
+.ency-cats button, .ency-grades button { border-radius: 999px; padding: 3px 12px; font-size: 0.8rem; color: var(--dust); }
+.ency-cats button.on { color: var(--bone); border-color: var(--void); background: color-mix(in srgb, var(--void) 18%, var(--ground)); }
+.ency-cats button b { font-weight: 400; font-size: 0.72rem; color: var(--dust); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.ency-grades { display: flex; flex-wrap: wrap; gap: 4px; }
+.ency-grades button { font-size: 0.74rem; padding: 1px 10px; }
+.ency-grades button.on { border-color: currentColor; background: color-mix(in srgb, currentColor 14%, var(--ground)); }
+#ency-q { flex: 1 1 220px; max-width: 320px; box-sizing: border-box; background: var(--rock); color: var(--bone); border: 1px solid var(--seam); border-radius: 999px; padding: 5px 14px; font: inherit; font-size: 0.82rem; }
+#ency-q:focus-visible { outline: 2px solid var(--void); outline-offset: 1px; }
+.ency-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 8px; }
+.ec { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: start; background: var(--rock); border: 1px solid var(--seam); border-radius: 10px; padding: 9px 12px 10px; scroll-margin: 80px; }
+.ec .ico { width: 40px; height: 40px; cursor: default; }
+.ec h3 { margin: 0; font-size: 0.9rem; font-weight: 800; line-height: 1.35; }
+.ec-tags { display: flex; flex-wrap: wrap; gap: 3px; margin: 3px 0 4px; }
+.ec-tags .tag { font-size: 0.66rem; }
+.ec-tags button.tag { padding: 0 5px; border-radius: 2px; }
+.ec p { margin: 0; font-size: 0.8rem; line-height: 1.5; color: color-mix(in srgb, var(--bone) 82%, var(--dust)); white-space: pre-line; overflow-wrap: anywhere; }
+.ec .st { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 0.76rem; color: var(--dust); margin-top: 4px; }
+.ec .st b { color: var(--bone); font-weight: 600; }
+.ec.flash { animation: ecflash 1.6s ease-out; }
+@keyframes ecflash { 0%, 40% { border-color: var(--void); box-shadow: 0 0 0 3px color-mix(in srgb, var(--void) 45%, transparent); } 100% { border-color: var(--seam); box-shadow: none; } }
+.ency-empty { color: var(--dust); font-size: 0.85rem; padding: 12px 0; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -366,7 +400,10 @@ details.raw summary { font-size: 0.78rem; }
 <div class="wrap">
   <div class="top">
     <div class="brand">상실의 동굴 · <b>런 기록 해독기</b></div>
+    <nav class="views" aria-label="화면"><button type="button" data-view="dec" class="on">해독기</button><button type="button" data-view="ency">백과사전</button></nav>
   </div>
+
+  <div id="v-dec">
 
   <section class="intake" id="intake">
   <div class="intake-bar">
@@ -411,6 +448,16 @@ details.raw summary { font-size: 0.78rem; }
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
+  </div>
+
+  <section class="ency" id="v-ency" hidden aria-label="백과사전">
+    <div class="ency-bar">
+      <div class="ency-cats" id="ency-cats" role="tablist"></div>
+      <input type="search" id="ency-q" placeholder="이름·설명·키워드 검색" aria-label="백과사전 검색">
+    </div>
+    <div class="ency-grades" id="ency-grades"></div>
+    <div class="ency-grid" id="ency-grid"></div>
+  </section>
 </div>
 
 <script>
@@ -1229,8 +1276,10 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const s = named && N[table] && N[table][id];
     const g = N.grade && N.grade[table] ? N.grade[table][id] || 0 : 0;
     const cls = table === 'event' ? 'ev' : table === 'curse' ? 'curse' : 'n' + g;
-    return '<span class="' + cls + '">' + esc(s || ('#' + id)) + '</span>';
+    const go = s && ENCY_T.includes(table) ? ' data-ency="' + table + '/' + id + '"' : '';
+    return '<span class="' + cls + '"' + go + '>' + esc(s || ('#' + id)) + '</span>';
   }
+  const ENCY_T = ['module', 'relic', 'minion', 'potion', 'curse'];
   const TBL = ['', 'relic', 'minion', 'potion', 'curse'];
   function gainText(e) {
     const sign = e.type === 'gain' ? '+' : '−';
@@ -1697,7 +1746,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     if (k === 'relic' || k === 'module' || k === 'potion' || k === 'curse') {
       const label = { relic: '유물', module: '모듈', potion: '물약', curse: '저주' }[k];
       return (IMG(k, v) ? '<img class="pop-img" alt="" src="' + IMG(k, v) + '">' : '') + '<div class="pop-h"><b>' + nm(k, v) + '</b><span>' + label + (k === 'relic' || k === 'module' ? ' · ' + ['하급', '중급', '상급', '하자'][Math.min(3, (N.grade[k] || [])[v] || 0)] : '') + '</span></div>' +
-        '<div class="pr">' + (named && DS(k, v) ? esc(DS(k, v)) : '<span class="dim">설명 없음</span>') + '</div>';
+        '<div class="pr">' + (named && DS(k, v) ? esc(DS(k, v)) : '<span class="dim">설명 없음</span>') + '</div>' + toEncy(k, v);
     }
     if (k === 'minion') {
       const m = lastEnd && lastEnd.state.minions[v];
@@ -1711,7 +1760,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
           return '<div class="pr stat4 num">' + cell('체력', b[0], m.hp, 1) + cell('공격력', b[3], m.atk, 1) + cell('방어력', b[1], m.arm, 1) + cell('공격주기', b[2], m.cd, -1) + '</div>' +
             '<div class="pr dim">괄호는 기본값과 런 동안 영구로 더해진 값. 모듈·업그레이드의 전투 중 효과는 빠짐</div>';
         })() +
-        '<div class="pms">' + m.mods.map((x, k) => { const d = lastDeckMods && lastDeckMods.find(q => q.mi === v && q.k === k); return modLine(x, d ? stackText(d, lastHist.wins) : ''); }).join('') + '</div>';
+        '<div class="pms">' + m.mods.map((x, k) => { const d = lastDeckMods && lastDeckMods.find(q => q.mi === v && q.k === k); return modLine(x, d ? stackText(d, lastHist.wins) : ''); }).join('') + '</div>' + toEncy('minion', m.t);
     }
     return '';
   }
@@ -1741,12 +1790,109 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   mapEl.addEventListener('click', e => {
     const t = e.target.closest('[data-pop]');
     if (!t) return;
-    if (popPinned && popFor === t) hidePop(); else showPop(t, true);
     e.stopPropagation();
+    const tgt = encyTarget(t);
+    if (tgt && HOVER.matches) { goEncy(tgt[0], tgt[1]); return; } //마우스: 바로 백과사전으로. 터치: 먼저 팝업 (팝업 안 "백과사전에서 보기")
+    if (popPinned && popFor === t) hidePop(); else showPop(t, true);
   });
   document.addEventListener('click', e => { if (popPinned && !pop.contains(e.target)) hidePop(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') hidePop(); });
   addEventListener('scroll', () => { if (!pop.hidden) { if (popPinned && popFor) showPop(popFor, true); else hidePop(); } }, { passive: true });
+
+  /* ===== 백과사전 =====
+   * 해독기에 이미 들어 있는 이름·설명·등급·키워드·하수인 기본 능력치로 만듦 (build.py가 게임 소스에서 뽑음).
+   * 주소: #ency/분류/번호 → 뒤로 가기로 해독 화면에 돌아옴 */
+  const HOVER = matchMedia('(hover: hover) and (pointer: fine)');
+  const ENCY_CATS = [['module', '모듈'], ['relic', '유물'], ['minion', '하수인'], ['potion', '물약'], ['curse', '저주']];
+  const GRADE_TXT = ['하급', '중급', '상급', '하자'];
+  const gradeOf = (k, v) => (N.grade && N.grade[k] ? N.grade[k][v] || 0 : 0);
+  function toEncy(k, v) { return N[k] && N[k][v] ? '<a class="to-ency" href="#ency/' + k + '/' + v + '" data-ency="' + k + '/' + v + '">백과사전에서 보기 ›</a>' : ''; }
+  function encyTarget(t) {
+    const k = t.dataset.pop, v = +t.dataset.v;
+    if (k === 'minion') { const m = lastEnd && lastEnd.state.minions[v]; return m ? ['minion', m.t] : null; }
+    return ENCY_T.includes(k) && N[k] && N[k][v] ? [k, v] : null;
+  }
+  const ency = { cat: 'module', q: '', g: -1 };
+  let decScroll = 0;
+  const norm = x => String(x).toLowerCase().replace(/\s+/g, '');
+  function encyText(k, v) { return norm(N[k][v] + ' ' + DS(k, v) + ' ' + (k === 'module' ? MM(v)[0] : '')); }
+  function encyIds(k, useGrade) {
+    const q = norm(ency.q), out = [];
+    (N[k] || []).forEach((n, v) => {
+      if (!n) return;
+      if (q && !encyText(k, v).includes(q)) return;
+      if (useGrade && ency.g >= 0 && gradeOf(k, v) !== ency.g) return;
+      out.push(v);
+    });
+    return out.sort((a, b) => gradeOf(k, a) - gradeOf(k, b) || a - b);
+  }
+  function encyCard(k, v) {
+    const g = gradeOf(k, v), gi = Math.min(2, g), img = IMG(k, v);
+    const tags = [];
+    if (k !== 'curse') tags.push('<span class="tag n' + g + '">' + GRADE_TXT[Math.min(3, g)] + '</span>');
+    if (k === 'module') {
+      const mm = MM(v);
+      if (mm[0]) mm[0].split('·').forEach(w => tags.push('<button type="button" class="tag" data-kw="' + esc(w) + '" title="이 키워드로 찾기">' + esc(w) + '</button>'));
+      if (mm[1]) tags.push('<span class="tag">승전 ' + mm[1] + '</span>');
+      if (mm[2]) tags.push('<span class="tag">성장</span>');
+    }
+    let st = '';
+    if (k === 'minion') {
+      const b = N.base && N.base.minion && N.base.minion[v];
+      if (b) st = '<div class="st num"><span>체력 <b>' + b[0] + '</b></span><span>공격력 <b>' + b[3] + '</b></span><span>방어력 <b>' + b[1] + '</b></span><span>공격주기 <b>' + b[2] + '</b></span></div>';
+    }
+    const d = DS(k, v);
+    return '<article class="ec" id="e-' + k + '-' + v + '">' +
+      '<span class="ico ' + (k === 'curse' ? 'g0' : 'g' + gi) + (img ? ' pic' : '') + '" aria-hidden="true">' + (img ? '<img alt="" src="' + img + '">' : '<i></i>') + '</span>' +
+      '<div><h3 class="' + (k === 'curse' ? 'curse' : 'n' + g) + '">' + esc(N[k][v]) + '</h3>' +
+      (tags.length ? '<div class="ec-tags">' + tags.join('') + '</div>' : '') +
+      (d ? '<p>' + esc(d) + '</p>' : k === 'minion' ? '' : '<p class="dim">설명 없음</p>') + st + '</div></article>';
+  }
+  function encyRender() {
+    $('ency-cats').innerHTML = ENCY_CATS.map(([k, t]) => '<button type="button" role="tab" data-cat="' + k + '" aria-selected="' + (k === ency.cat) + '" class="' + (k === ency.cat ? 'on' : '') + '">' + t + '<b>' + encyIds(k, false).length + '</b></button>').join('');
+    const gs = ency.cat === 'curse' ? [] : [...new Set((N[ency.cat] || []).map((n, v) => n ? gradeOf(ency.cat, v) : -1).filter(x => x >= 0))].sort();
+    if (!gs.includes(ency.g)) ency.g = -1;
+    $('ency-grades').innerHTML = gs.length > 1 ? ['<button type="button" data-g="-1" class="' + (ency.g < 0 ? 'on' : '') + '">전체</button>'].concat(gs.map(g => '<button type="button" data-g="' + g + '" class="n' + g + (ency.g === g ? ' on' : '') + '">' + GRADE_TXT[Math.min(3, g)] + '</button>')).join('') : '';
+    const ids = encyIds(ency.cat, true);
+    $('ency-grid').innerHTML = ids.length ? ids.map(v => encyCard(ency.cat, v)).join('') : '<p class="ency-empty">찾는 항목이 없습니다.</p>';
+  }
+  function setView(v) {
+    const e = v === 'ency';
+    if (e && $('v-ency').hidden) decScroll = scrollY;
+    $('v-dec').hidden = e; $('v-ency').hidden = !e;
+    document.querySelectorAll('.views button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+    hidePop();
+  }
+  function applyHash() {
+    const m = /^#ency(?:\/(\w+))?(?:\/(\d+))?/.exec(location.hash);
+    if (!m) { const back = !$('v-dec').hidden; setView('dec'); if (!back) scrollTo(0, decScroll); return; }
+    setView('ency');
+    if (m[1] && ENCY_CATS.some(c => c[0] === m[1])) ency.cat = m[1];
+    const id = m[2] !== undefined ? +m[2] : null;
+    if (id !== null && !encyIds(ency.cat, true).includes(id)) { ency.q = ''; ency.g = -1; $('ency-q').value = ''; }
+    encyRender();
+    const card = id !== null && $('e-' + ency.cat + '-' + id);
+    if (card) { card.scrollIntoView({ block: 'center' }); card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
+    else scrollTo(0, 0);
+  }
+  function goEncy(k, v) { location.hash = '#ency/' + k + (v !== undefined ? '/' + v : ''); }
+  addEventListener('hashchange', applyHash);
+  document.querySelector('.views').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.view === 'ency') { if ($('v-ency').hidden) goEncy(ency.cat); }
+    else if (location.hash) { history.pushState(null, '', location.pathname + location.search); applyHash(); }
+  });
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-ency]');
+    if (!a || (mapEl.contains(a) && a.closest('[data-pop]'))) return; //지도 안 아이콘·이름은 위 지도 처리(마우스면 바로 이동, 터치면 팝업)로
+    e.preventDefault(); e.stopPropagation();
+    const [k, v] = a.dataset.ency.split('/');
+    goEncy(k, +v);
+  }, true);
+  $('ency-cats').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.cat = b.dataset.cat; ency.g = -1; history.replaceState(null, '', '#ency/' + ency.cat); encyRender(); });
+  $('ency-grades').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.g = +b.dataset.g; encyRender(); });
+  $('ency-grid').addEventListener('click', e => { const b = e.target.closest('[data-kw]'); if (!b) return; ency.q = b.dataset.kw; $('ency-q').value = ency.q; encyRender(); });
+  $('ency-q').addEventListener('input', () => { ency.q = $('ency-q').value; encyRender(); });
 
   function renderCheck(lines) {
     const st = $('code-st');
@@ -1949,6 +2095,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   }
   drawQueue();
   render();
+  if (location.hash) applyHash();
 })();
 </script>
 </body>
