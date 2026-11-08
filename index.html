@@ -1234,6 +1234,25 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     got.forEach(g => { g.seg = segOf(g.act, g.floor); });
     return { got, wins };
   }
+  /* 유물을 언제 어디서 얻었나: 얻음(유물) 기록 + 그 층 방 종류. 같은 층에서 상점 유물 구매가 먼저 있으면 "상점".
+   * 첫 방에 들어가기 전에 얻은 것은 "시작" (난이도 시작 보상 등). 유물 후보(무엇이 나왔는지)는 기록되지 않아 픽률은 없음 */
+  function relicHistory(ev) {
+    let act = 1, floor = 0, room = 0, wins = 0;
+    const got = [], shopBuy = [];
+    for (const e of ev) {
+      if (e.type === 'room') { act = e.act; floor = e.floor; room = e.room; shopBuy.length = 0; }
+      else if (e.type === 'battle') wins++;
+      else if (e.type === 'shop' && e.cat === 1) shopBuy.push(e.id);
+      else if (e.type === 'gain' && e.kind === 1) {
+        const si = shopBuy.indexOf(e.v);
+        const how = floor === 0 ? '시작' : si >= 0 ? '상점' : (D.ROOM[room] || '방');
+        if (si >= 0) shopBuy.splice(si, 1);
+        got.push({ id: e.v, act, floor, how, wins, seg: floor === 0 ? '시작' : segOf(act, floor) });
+      }
+    }
+    return { got, wins };
+  }
+
   /* 최종 덱 모듈마다 얻은 기록 짝짓기: [{m(하수인), k(칸), x(모듈), g(얻은 기록 또는 null)}] */
   function deckModules(st, hist) {
     const pool = {};
@@ -1361,7 +1380,16 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       return [txtN('module', v), GN2[Math.min(3, (N.grade.module || [])[v] || 0)], MM(v)[0], 1, q.appear, q.pick, pct(q.pick, q.appear),
         lo.a ? lo.p + '/' + lo.a + ' ' + pct(lo.p, lo.a) : '', lw.a ? lw.p + '/' + lw.a + ' ' + pct(lw.p, lw.a) : '', w, l, w + l ? pct(w, w + l) : ''];
     });
-    return { run, pickRows, floorRows, modRows, statRows };
+    /* 유물: 런이 끝날 때 가진 유물 하나에 한 줄 */
+    const rh = relicHistory(ev), rpool = {};
+    rh.got.forEach(g => { (rpool[g.id] = rpool[g.id] || []).push(g); });
+    const relicRows = end ? end.relics.map(v => {
+      const g = rpool[v] && rpool[v].length ? rpool[v].shift() : null;
+      return [id, winLose, txtN('relic', v), GN2[Math.min(2, (N.grade.relic || [])[v] || 0)], g ? (g.floor ? g.act + '막 ' + g.floor + '층' : '시작') : '', g ? g.seg : '', g ? g.how : '기록 없음', g ? rh.wins - g.wins : ''];
+    }) : [];
+    /* 유물 통계 (시트에서는 모든 런을 모아 자동 계산) */
+    const relicStatRows = relicRows.map(r => [r[2], r[3], 1, r[1] === '승리' ? 1 : 0, r[1] === '패배' ? 1 : 0, r[1] === '승리' ? '100%' : r[1] === '패배' ? '0%' : '', r[5] === '최저층' ? 1 : 0, r[5] === '저층' ? 1 : 0, r[6]]);
+    return { run, pickRows, floorRows, modRows, statRows, relicRows, relicStatRows };
   }
   function table(head, rows) {
     return '<div class="tbl-wrap"><table class="sh"><thead><tr>' + head.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' +
@@ -1380,6 +1408,11 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       '<section class="blk"><div class="blk-h"><h2>모듈 통계 탭</h2><span class="sum">시트가 모든 런을 모아 자동 계산 · 아래는 이 판 하나가 더해지는 몫</span></div>' +
       '<p class="hint">등장 = 보상 후보로 나온 횟수 · 픽률 = 고름 ÷ 등장 · 승률 = 그 모듈을 고른 런 중 승리(일반·진 엔딩) 비율, 한 런에 여러 번 골라도 한 번으로 셈</p>' +
       table(['모듈', '등급', '키워드', '등장한 런', '등장', '고름', '픽률', '최저층 고름/등장', '저층 고름/등장', '고른 런 승', '고른 런 패', '승률'], S.statRows) + '</section>' +
+      '<section class="blk"><div class="blk-h"><h2>유물 탭</h2><span class="sum">런이 끝날 때 가진 유물 하나에 한 줄 · ' + S.relicRows.length + '줄</span></div>' +
+      table(['런 번호', '결과', '유물', '등급', '얻은 곳', '구간', '얻은 방법', '그 뒤 승리'], S.relicRows) + '</section>' +
+      '<section class="blk"><div class="blk-h"><h2>유물 통계 탭</h2><span class="sum">시트가 모든 런을 모아 자동 계산 · 아래는 이 판 하나가 더해지는 몫</span></div>' +
+      '<p class="hint">유물은 후보(무엇이 나왔는지)가 기록되지 않아 등장·픽률은 없음. 보유한 런의 승률과 얻은 구간·방법을 셈</p>' +
+      table(['유물', '등급', '보유한 런', '승', '패', '승률', '최저층에서 얻음', '저층에서 얻음', '얻은 방법'], S.relicStatRows) + '</section>' +
       '<section class="blk"><div class="blk-h"><h2>층 탭</h2><span class="sum">한 층에 한 줄 · ' + S.floorRows.length + '줄' + (res.ev.find(e => e.type === 'head').ver < 7 ? ' · 체력·골드는 V7 기록부터' : '') + '</span></div>' +
       table(['런 번호', '막', '층', '방', '들어갈 때 체력', '들어갈 때 골드', '전투 상대', '잃은 체력', '전투 시간(초)'], S.floorRows) + '</section>';
   }
