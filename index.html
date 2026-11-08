@@ -201,7 +201,7 @@ table.sh td:first-child { white-space: nowrap; }
 .pop-h .cur { margin-left: auto; white-space: nowrap; }
 .pop-h .cur b { font-weight: 700; }
 .pr { overflow-wrap: anywhere; }
-.pr.skip span:not(.k):not(.sep) { color: var(--dust) !important; }
+.pr .skip, .pr .skip * { color: var(--dust) !important; font-size: 0.92em; }
 .pr.stats { font-size: 0.78rem; color: var(--dust); }
 .items { display: grid; gap: 2px; min-width: 0; font-size: 0.88rem; }
 .it { overflow-wrap: anywhere; }
@@ -1640,20 +1640,31 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     let h = '<div class="pop-h"><b class="r' + (r ? r.room : 1) + '">' + (r ? D.ROOM[r.room] : '기록') + '</b>' +
       '<span>' + a.n + '막' + (r ? ' ' + r.floor + '층 · 길 ' + (r.lane ? 'B' : 'A') : '') + '</span>' +
       (r && r.cur ? '<span class="cur num"><b class="hurt">' + r.cur.hp + '/' + r.cur.max + '</b> 체력 · <b class="gold">' + r.cur.gold + '</b>골드</span>' : '') + '</div>';
-    const rows = [];
+    /* 짧게: 같은 종류끼리 한 줄로 묶음 (사용자 2026-11-08 "너무 길게 나오는데") */
+    const rows = [], J = x => x.join('<span class="dim"> · </span>');
+    const gains = [], loses = [], uses = [], offers = [], battles = [], other = [];
+    const pickedMinions = f.items.filter(e => e.type === 'offer' && e.kind && e.picked !== undefined).map(e => e.ids[e.picked]);
+    const gainOne = e => e.kind === 0 ? '<span class="gold num">' + (e.type === 'gain' ? '+' : '−') + e.v + '골드</span>' : nm(TBL[e.kind], e.v);
     for (const e of f.items) {
-      if (e.type === 'offer') {
-        const t = e.kind ? 'minion' : 'module', label = e.kind ? '하수인 보상' : '모듈 보상';
+      if (e.type === 'battle') battles.push('<div class="pr">' + item(e) + '</div>');
+      else if (e.type === 'gain') {
+        const i = e.kind === 2 ? pickedMinions.indexOf(e.v) : -1;
+        if (i >= 0) pickedMinions.splice(i, 1); else gains.push(gainOne(e));
+      } else if (e.type === 'lose') loses.push(gainOne(e));
+      else if (e.type === 'potion') uses.push(nm('potion', e.v));
+      else if (e.type === 'offer') {
+        const t = e.kind ? 'minion' : 'module';
         const got = e.picked !== undefined ? nm(t, e.ids[e.picked]) : '<span class="dim">안 고름</span>';
         const skip = e.ids.filter((v, i) => i !== e.picked).map(v => nm(t, v));
-        rows.push('<div class="pr"><span class="k">' + label + '</span>' + got + '</div>');
-        if (skip.length) rows.push('<div class="pr skip"><span class="k">건너뜀</span>' + skip.join('<span class="sep"> / </span>') + '</div>');
-      } else {
-        const x = item(e);
-        if (x) rows.push('<div class="pr">' + x + '</div>');
-      }
+        offers.push('<div class="pr"><span class="k">' + (e.kind ? '하수인' : '모듈') + '</span>' + got +
+          (skip.length ? ' <span class="skip">(' + skip.join(' · ') + ')</span>' : '') + '</div>');
+      } else { const x = item(e); if (x) other.push('<div class="pr">' + x + '</div>'); }
     }
-    if (f.stats.length) rows.push('<div class="pr stats"><span class="k">덱 변화</span>' + f.stats.map(s => s.t ? '칸' + s.slot + ' ' + esc((named && N.minion[s.t]) || '#' + s.t) + ' 체+' + s.hp + ' 공+' + s.atk + ' 방+' + s.arm + ' 주−' + s.cd : '칸' + s.slot + ' 빔').join(' · ') + '</div>');
+    rows.push(...battles, ...other);
+    if (gains.length) rows.push('<div class="pr"><span class="k">얻음</span>' + J(gains) + '</div>');
+    if (loses.length) rows.push('<div class="pr"><span class="k">잃음</span>' + J(loses) + '</div>');
+    rows.push(...offers);
+    if (uses.length) rows.push('<div class="pr"><span class="k">물약 사용</span>' + J(uses) + '</div>');
     if (r && f.tot) rows.push('<div class="pr tot num"><span class="k">하수인 ' + f.tot.n + '기 총합</span>체력 <b>' + Math.round(f.tot.hp) + '</b> · 공격력 <b>' + f.tot.atk + '</b> · 방어력 <b>' + f.tot.arm + '</b></div>');
     if (a.deck && f === a.floors[a.floors.length - 1]) rows.push('<div class="pr actend"><span class="k">' + a.n + '막을 마칠 때</span>체력 ' + a.deck.hp + '/' + a.deck.mhp + ' · 골드 ' + a.deck.gold + ' · 하수인 ' + a.deck.minions.length + '</div>');
     if (!f.items.length && !f.stats.length) rows.push('<div class="pr dim">기록 없음</div>');
