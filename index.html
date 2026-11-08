@@ -55,10 +55,17 @@ button:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2
 textarea { width: 100%; box-sizing: border-box; min-height: calc(1.6em * 3 + 22px); resize: vertical; background: var(--rock); color: var(--bone);
   border: 1px solid var(--seam); border-radius: 2px; padding: 10px; font-family: var(--f-mono); font-size: 0.8rem; line-height: 1.6; }
 /* 사진 올리기 (맨 위, 화면 폭 전체) */
-.consent { display: grid; gap: 4px; font-size: 0.82rem; border-top: 1px dashed var(--seam); padding-top: 10px; }
-.consent label { font-weight: 600; color: var(--bone); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
-.consent input { accent-color: var(--void); width: 16px; height: 16px; }
-.save-st { min-height: 1.2em; }
+.consent { display: grid; gap: 6px; padding: 12px 14px; border: 2px solid var(--void); border-radius: 4px;
+  background: color-mix(in srgb, var(--void) 12%, var(--ground)); }
+.consent.on { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--ground)); }
+.agree-row { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 1.05rem; font-weight: 800; color: var(--bone); }
+.agree-row input { width: 22px; height: 22px; accent-color: var(--ok); cursor: pointer; flex: none; }
+.agree-state { font-size: 0.8rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 2px;
+  color: var(--ground); background: var(--dust); }
+.consent.on .agree-state { background: var(--ok); }
+.agree-why { margin: 0; font-size: 0.82rem; color: var(--dust); line-height: 1.55; max-width: 80ch; }
+.save-st { font-size: 0.86rem; font-weight: 600; }
+.save-st:empty { display: none; }
 .save-st.ok { color: var(--ok); } .save-st.warn { color: var(--warn); } .save-st.bad { color: var(--bad); }
 .code-in { margin-top: 12px; }
 .code-in .label { margin-bottom: 6px; }
@@ -235,13 +242,16 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
         <button type="button" class="go" id="btn-go" disabled>변환</button>
       </div>
     </div>
-    <div class="thumbs" id="thumbs"></div>
-    <span class="ocr-status" id="ocr-status" role="status"></span>
     <div class="consent" id="consent" hidden>
-      <label><input type="checkbox" id="agree"> 기록 저장에 동의</label>
-      <span class="dim">해독한 런 기록(시드, 지나간 층, 고른 모듈, 덱, 유물 등)은 게임 밸런스 개선을 위해 제작자의 구글 시트에 저장됩니다. 이름이나 계정 같은 개인 정보는 저장하지 않습니다. 동의하면 이 브라우저가 기억해, 다음부터 온전한 기록은 변환할 때 자동으로 저장됩니다.</span>
+      <label class="agree-row">
+        <input type="checkbox" id="agree">
+        <span class="agree-t">기록 저장에 동의 <b class="agree-state" id="agree-state">꺼짐</b></span>
+      </label>
+      <p class="agree-why">해독한 런 기록(시드, 지나간 층, 고른 모듈, 덱, 유물 등)을 게임 밸런스 개선을 위해 제작자의 구글 시트에 저장합니다. 이름이나 계정 같은 개인 정보는 저장하지 않습니다. 한 번 동의하면 이 브라우저가 기억해, 그다음부터 온전한 기록은 변환할 때 자동으로 저장됩니다.</p>
       <span class="save-st" id="save-st" role="status"></span>
     </div>
+    <div class="thumbs" id="thumbs"></div>
+    <span class="ocr-status" id="ocr-status" role="status"></span>
   </section>
 
   <div class="code-in">
@@ -1753,8 +1763,10 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
 
   if (CAN_SAVE) {
     $('consent').hidden = false;
+    const agreeShow = () => { const on = $('agree').checked; $('consent').classList.toggle('on', on); $('agree-state').textContent = on ? '켜짐' : '꺼짐'; };
     $('agree').checked = store.get('runlog-agree') === '1';
-    $('agree').addEventListener('change', () => { store.set('runlog-agree', $('agree').checked ? '1' : '0'); if ($('agree').checked && src.value.trim()) render(); else saveSay(''); });
+    agreeShow();
+    $('agree').addEventListener('change', () => { store.set('runlog-agree', $('agree').checked ? '1' : '0'); agreeShow(); if ($('agree').checked && src.value.trim()) render(); else saveSay(''); });
   }
   drawQueue();
   render();
