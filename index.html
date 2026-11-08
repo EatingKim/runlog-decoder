@@ -190,6 +190,8 @@ button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 /* 막 끝·런 끝 덱 */
 .warn-row { color: var(--warn); font-size: 0.85rem; padding: 8px 0; }
 
+.raw-bar { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.toast2 { font-size: 0.8rem; color: var(--ok); }
 details.raw summary { cursor: pointer; color: var(--dust); font-size: 0.85rem; }
 details.raw pre { background: var(--rock); border: 1px solid var(--seam); padding: 12px; font-family: var(--f-mono); font-size: 0.76rem;
   line-height: 1.6; overflow: auto; max-height: 60vh; color: var(--bone); }
@@ -205,10 +207,8 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
     <div class="tools">
       <button type="button" id="btn-check">코드 확인</button>
       <button type="button" id="btn-clear">지우기</button>
-      <button type="button" class="main" id="btn-copy">AI용 글 복사</button>
     </div>
   </div>
-  <div class="toast" id="toast" role="status"></div>
 
   <section class="upload" id="drop" aria-labelledby="up-title">
     <div class="up-head">
@@ -1187,7 +1187,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       h += '<p class="endline">' + D.ENDING[end.ending] + ' · 마지막 전투 ' + encName(end.enc) + '</p>';
     }
     for (const w of warn) h += '<div class="warn-row">' + esc(w) + '</div>';
-    h += '<details class="raw"><summary>글로 보기 (AI에 넘기는 글)</summary><pre>' + esc(lastLog) + '</pre></details>';
+    h += '<details class="raw"><summary>글로 보기</summary><div class="raw-bar"><button type="button" id="btn-copy">글 복사</button><span class="toast2" id="toast2" role="status"></span></div><pre>' + esc(lastLog) + '</pre></details>';
     return { html: h, head, end, acts };
   }
   function encName(id) { return '<span>' + esc((named && N.encounter[id]) || '편성 ' + id) + '</span>'; }
@@ -1360,17 +1360,19 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   function setText(t) { src.value = t; render(); }
   $('btn-check').addEventListener('click', render);
   $('btn-clear').addEventListener('click', () => { setText(''); src.focus(); });
-  $('btn-copy').addEventListener('click', () => {
-    const done = m => { $('toast').textContent = m; setTimeout(() => { $('toast').textContent = ''; }, 2500); };
-    if (!lastLog) { done('먼저 기록 코드를 붙여넣으세요.'); return; }
+  /* 글 복사 (맨 아래 글로 보기 안. 지도를 다시 그릴 때마다 버튼이 새로 생기므로 위임으로 받음) */
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#btn-copy')) return;
+    const say = m => { const t = $('toast2'); if (t) { t.textContent = m; setTimeout(() => { t.textContent = ''; }, 2500); } };
+    if (!lastLog) return;
     const fallback = () => {
-      const d = document.querySelector('details.raw'); if (d) d.open = true;
       const pre = document.querySelector('details.raw pre');
       if (pre) { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
-      done('복사가 막혀 있어 글을 선택해 두었습니다. Ctrl+C로 복사하세요.');
+      say('복사가 막혀 있어 글을 선택해 두었습니다. Ctrl+C로 복사하세요.');
     };
-    try { navigator.clipboard.writeText(lastLog).then(() => done('복사했습니다. AI 대화창에 붙여넣으세요.'), fallback); } catch (e) { fallback(); }
+    try { navigator.clipboard.writeText(lastLog).then(() => say('복사했습니다.'), fallback); } catch (err) { fallback(); }
   });
+
   /* ---------- 스크린샷 읽기 ---------- */
   const OCR = window.RunLogOcr, TPL = OCR.unpack(RUNLOG_OCR_TEMPLATES);
   const drop = $('drop'), ocrSt = $('ocr-status');
