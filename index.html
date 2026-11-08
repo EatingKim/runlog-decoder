@@ -13,6 +13,7 @@
    한 가지 세계로 고정한 어두운 화면: 공허 동굴 바탕 + 게임 안 글자색(하급 흰·중급 파랑·상급 노랑·하자 붉은 보라·이벤트 청록) */
 :root {
   color-scheme: dark;
+  --kw-hit: #ff8a7a; --kw-cyc: #5fd3cc; --kw-open: #ffb24d; --kw-hurt: #c58bff; --kw-win: #f2d14b; --kw-bond: #79d39a; --kw-death: #a9a3b5; --kw-cast: #6ea6ff;
   --ground: #131118; --rock: #1b1822; --seam: #2c2836; --dust: #8a8497; --bone: #ddd8e6;
   --void: #a48bff;
   --g0: #ece9f2; --g1: #6ea6ff; --g2: #f2d14b; --g3: #d65a86; --cyan: #5fd3cc;
@@ -379,9 +380,26 @@ details.raw summary { font-size: 0.78rem; }
 .ency-grades button.on { border-color: currentColor; background: color-mix(in srgb, currentColor 14%, var(--ground)); }
 #ency-q { flex: 1 1 220px; max-width: 320px; box-sizing: border-box; background: var(--rock); color: var(--bone); border: 1px solid var(--seam); border-radius: 999px; padding: 5px 14px; font: inherit; font-size: 0.82rem; }
 #ency-q:focus-visible { outline: 2px solid var(--void); outline-offset: 1px; }
-.ency-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 8px; }
-.ec { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: start; background: var(--rock); border: 1px solid var(--seam); border-radius: 10px; padding: 9px 12px 10px; scroll-margin: 80px; }
-.ec .ico { width: 40px; height: 40px; cursor: default; }
+.ency-grid { display: grid; gap: 4px; }
+.eg { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 8px; }
+.eg-h { display: flex; align-items: center; gap: 8px; margin: 14px 0 4px; font-size: 0.82rem; font-weight: 800; color: var(--c); letter-spacing: 0.04em; }
+.eg-h::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 55%, transparent), transparent); }
+.eg-h b { font-weight: 400; font-size: 0.72rem; color: var(--dust); }
+.eg-h:first-child { margin-top: 2px; }
+.g0 { --c: var(--g0); } .g1 { --c: var(--g1); } .g2 { --c: var(--g2); } .g3 { --c: var(--g3); } .gc { --c: var(--g3); }
+.ec { position: relative; overflow: hidden; display: grid; grid-template-columns: 44px 1fr; gap: 11px; align-items: start; border: 1px solid var(--seam); border-radius: 10px; padding: 10px 12px 11px 14px; scroll-margin: 80px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 9%, var(--rock)) 0%, var(--rock) 55%); transition: border-color .15s, transform .15s; }
+.ec::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--c); opacity: 0.85; }
+.ec:hover { border-color: color-mix(in srgb, var(--c) 55%, var(--seam)); transform: translateY(-1px); }
+.ec .ico { width: 44px; height: 44px; cursor: default; color: var(--c); border-color: color-mix(in srgb, var(--c) 60%, transparent); background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--c) 30%, var(--ground)), color-mix(in srgb, var(--c) 8%, var(--ground))); }
+.ec .ico.txt em { font-style: normal; font-family: var(--f-display); font-size: 1.2rem; font-weight: 700; color: var(--c); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 50%, transparent); }
+.ec h3 { color: var(--c); }
+.kw { --k: var(--dust); display: inline-block; padding: 0 6px; margin-right: 2px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; line-height: 1.5; color: var(--k); background: color-mix(in srgb, var(--k) 16%, transparent); border: 1px solid color-mix(in srgb, var(--k) 35%, transparent); }
+.kw[data-kw] { cursor: pointer; }
+.kw.hit { --k: #ff8a7a; } .kw.cyc { --k: var(--cyan); } .kw.open { --k: #ffb24d; } .kw.hurt { --k: #c58bff; } .kw.win { --k: var(--g2); } .kw.bond { --k: #79d39a; } .kw.death { --k: #a9a3b5; } .kw.cast { --k: var(--g1); }
+.ec p b { color: var(--bone); font-weight: 700; }
+.ec p .up { color: var(--dust); font-size: 0.92em; }
+.ec-tags .tag.kwt { color: var(--k); border-color: color-mix(in srgb, var(--k) 40%, transparent); }
 .ec h3 { margin: 0; font-size: 0.9rem; font-weight: 800; line-height: 1.35; }
 .ec-tags { display: flex; flex-wrap: wrap; gap: 3px; margin: 3px 0 4px; }
 .ec-tags .tag { font-size: 0.66rem; }
@@ -1855,14 +1873,20 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     });
     return out.sort((a, b) => gradeOf(k, a) - gradeOf(k, b) || a - b);
   }
+  /* 설명 꾸미기: "타격 2:" 같은 발동 조건은 키워드 색 딱지, 숫자는 굵게, 강화 괄호 "(+2)"는 흐리게 */
+  const KW_CLS = { 타격: 'hit', 주기: 'cyc', 개전: 'open', 피격: 'hurt', 승전: 'win', 결속: 'bond', 사망: 'death', 시전: 'cast' };
+  const DESC_RE = /(타격|주기|개전|피격|승전|결속|사망|시전)(\s*\d+)?\s*:|(\(\+?[\d.]+%?\))|(\d+(?:\.\d+)?%?)/g;
+  function fmtDesc(t) {
+    return esc(t).replace(DESC_RE, (m, kw, n, par, num) => kw ? '<span class="kw ' + KW_CLS[kw] + '" data-kw="' + kw + '" title="이 키워드로 찾기">' + kw + (n ? ' ' + n.trim() : '') + '</span>'
+      : par ? '<span class="up">' + par + '</span>' : '<b>' + num + '</b>');
+  }
   function encyCard(k, v) {
     const g = gradeOf(k, v), gi = Math.min(2, g), img = IMG(k, v);
     const tags = [];
-    if (k !== 'curse') tags.push('<span class="tag n' + g + '">' + GRADE_TXT[Math.min(3, g)] + '</span>');
     if (k === 'module') {
       const mm = MM(v);
-      if (mm[0]) mm[0].split('·').forEach(w => tags.push('<button type="button" class="tag" data-kw="' + esc(w) + '" title="이 키워드로 찾기">' + esc(w) + '</button>'));
-      if (mm[1]) tags.push('<span class="tag">승전 ' + mm[1] + '</span>');
+      if (mm[0]) mm[0].split('·').filter(w => !(DS(k, v) || '').includes(w)).forEach(w => tags.push('<button type="button" class="tag kwt kw-' + (KW_CLS[w] || '') + '" style="--k: var(--kw-' + (KW_CLS[w] || 'x') + ', var(--dust))" data-kw="' + esc(w) + '" title="이 키워드로 찾기">' + esc(w) + '</button>'));
+      if (mm[1] && !(DS(k, v) || '').includes('승전')) tags.push('<span class="tag">승전 ' + mm[1] + '</span>');
       if (mm[2]) tags.push('<span class="tag">성장</span>');
     }
     let st = '';
@@ -1871,11 +1895,11 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       if (b) st = '<div class="st num"><span>체력 <b>' + b[0] + '</b></span><span>공격력 <b>' + b[3] + '</b></span><span>방어력 <b>' + b[1] + '</b></span><span>공격주기 <b>' + b[2] + '</b></span></div>';
     }
     const d = DS(k, v);
-    return '<article class="ec" id="e-' + k + '-' + v + '">' +
-      '<span class="ico ' + (k === 'curse' ? 'g0' : 'g' + gi) + (img ? ' pic' : '') + '" aria-hidden="true">' + (img ? '<img alt="" src="' + img + '">' : '<i></i>') + '</span>' +
+    return '<article class="ec ' + (k === 'curse' ? 'gc' : 'g' + Math.min(3, g)) + '" id="e-' + k + '-' + v + '">' +
+      '<span class="ico ' + (k === 'curse' ? 'gc' : 'g' + Math.min(3, g)) + (img ? ' pic' : ' txt') + '" aria-hidden="true">' + (img ? '<img alt="" src="' + img + '">' : '<em>' + esc([...N[k][v]][0]) + '</em>') + '</span>' +
       '<div><h3 class="' + (k === 'curse' ? 'curse' : 'n' + g) + '">' + esc(N[k][v]) + '</h3>' +
       (tags.length ? '<div class="ec-tags">' + tags.join('') + '</div>' : '') +
-      (d ? '<p>' + esc(d) + '</p>' : k === 'minion' ? '' : '<p class="dim">설명 없음</p>') + st + '</div></article>';
+      (d ? '<p>' + fmtDesc(d) + '</p>' : k === 'minion' ? '' : '<p class="dim">설명 없음</p>') + st + '</div></article>';
   }
   function encyRender() {
     $('ency-cats').innerHTML = ENCY_CATS.map(([k, t]) => '<button type="button" role="tab" data-cat="' + k + '" aria-selected="' + (k === ency.cat) + '" class="' + (k === ency.cat ? 'on' : '') + '">' + t + '<b>' + encyIds(k, false).length + '</b></button>').join('');
@@ -1883,7 +1907,12 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     if (!gs.includes(ency.g)) ency.g = -1;
     $('ency-grades').innerHTML = gs.length > 1 ? ['<button type="button" data-g="-1" class="' + (ency.g < 0 ? 'on' : '') + '">전체</button>'].concat(gs.map(g => '<button type="button" data-g="' + g + '" class="n' + g + (ency.g === g ? ' on' : '') + '">' + GRADE_TXT[Math.min(3, g)] + '</button>')).join('') : '';
     const ids = encyIds(ency.cat, true);
-    $('ency-grid').innerHTML = ids.length ? ids.map(v => encyCard(ency.cat, v)).join('') : '<p class="ency-empty">찾는 항목이 없습니다.</p>';
+    /* 등급별로 묶어 위에서부터 상급 → 중급 → 하급 → 하자 */
+    const groups = {};
+    ids.forEach(v => { const g = ency.cat === 'curse' ? 9 : gradeOf(ency.cat, v); (groups[g] = groups[g] || []).push(v); });
+    const order = Object.keys(groups).map(Number).sort((a, b) => (a === 3 ? -1 : a) - (b === 3 ? -1 : b)).reverse();
+    $('ency-grid').innerHTML = ids.length ? order.map(g => '<h2 class="eg-h ' + (g === 9 ? 'gc' : 'g' + g) + '"><span>' + (g === 9 ? '저주' : GRADE_TXT[g]) + '</span><b class="num">' + groups[g].length + '</b></h2>' +
+      '<div class="eg">' + groups[g].map(v => encyCard(ency.cat, v)).join('') + '</div>').join('') : '<p class="ency-empty">찾는 항목이 없습니다.</p>';
   }
   function setView(v) {
     const e = v === 'ency';
@@ -1920,7 +1949,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   }, true);
   $('ency-cats').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.cat = b.dataset.cat; ency.g = -1; history.replaceState(null, '', '#ency/' + ency.cat); encyRender(); });
   $('ency-grades').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.g = +b.dataset.g; encyRender(); });
-  $('ency-grid').addEventListener('click', e => { const b = e.target.closest('[data-kw]'); if (!b) return; ency.q = b.dataset.kw; $('ency-q').value = ency.q; encyRender(); });
+  $('ency-grid').addEventListener('click', e => { const b = e.target.closest('[data-kw]'); if (b && !$('v-ency').contains(b)) return; if (!b) return; ency.q = b.dataset.kw; $('ency-q').value = ency.q; encyRender(); });
   $('ency-q').addEventListener('input', () => { ency.q = $('ency-q').value; encyRender(); });
 
   function renderCheck(lines) {
