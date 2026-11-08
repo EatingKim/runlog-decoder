@@ -390,6 +390,8 @@ details.raw summary { font-size: 0.78rem; }
 .ge { --c: var(--elite); } .gb { --c: var(--boss); } .ga { --c: var(--void); } .gk { --c: var(--void); } .gs { --c: #ff8a7a; } .gt { --c: var(--cyan); }
 .kw-hit { --c: var(--kw-hit); } .kw-cyc { --c: var(--kw-cyc); } .kw-open { --c: var(--kw-open); } .kw-hurt { --c: var(--kw-hurt); } .kw-win { --c: var(--kw-win); } .kw-bond { --c: var(--kw-bond); } .kw-death { --c: var(--kw-death); } .kw-cast { --c: var(--kw-cast); }
 .ency-grades button.tint { color: var(--c); }
+.ency-roles { margin-top: -4px; padding-left: 10px; border-left: 2px solid var(--seam); }
+.ency-roles button b { font-weight: 400; font-size: 0.68rem; color: var(--dust); margin-left: 4px; }
 .term { border-bottom: 1px dotted color-mix(in srgb, currentColor 60%, transparent); cursor: help; }
 .ec p .term { color: #ffb3a8; }
 .ec .st { margin: 2px 0 4px; }
@@ -484,6 +486,7 @@ details.raw summary { font-size: 0.78rem; }
       <input type="search" id="ency-q" placeholder="이름·설명·키워드 검색" aria-label="백과사전 검색">
     </div>
     <div class="ency-grades" id="ency-grades"></div>
+    <div class="ency-grades ency-roles" id="ency-roles" hidden></div>
     <div class="ency-grid" id="ency-grid"></div>
   </section>
 </div>
@@ -1873,7 +1876,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     if (k === 'minion') { const m = lastEnd && lastEnd.state.minions[v]; return m ? ['minion', m.t] : null; }
     return ENCY_T.includes(k) && N[k] && N[k][v] ? [k, v] : null;
   }
-  const ency = { cat: 'module', q: '', g: -1 };
+  const ency = { cat: 'module', q: '', g: -1, r: '' }; //r: 아래 줄 탭 (적 = 종류 번호 0 일반 1 엘리트 2 보스 3 특수, 모듈 = 키워드 이름). '' = 전체
   let decScroll = 0;
   const norm = x => String(x).toLowerCase().replace(/\s+/g, '');
   /* 적·용어 (사용자 2026-11-08 "적 유닛이랑 키워드 설명도 추가해"): 게임 백과사전(Encyclopedia.eps)과 같은 종류·순서·막, 용어 글은 Keyword.eps */
@@ -1882,6 +1885,20 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   (N.terms || []).forEach(t => { TM[t.id] = t; TM_BY_NAME[t.name] = t; });
   const ROLE_TXT = ['일반', '엘리트', '우두머리', '특수'], ROLE_CLS = ['g0', 'ge', 'gb', 'g3'];
   const ACT_TXT = ['', '1막', '2막', '3막', '4막', '이벤트'];
+  /* 적 종류 탭 (사용자 2026-11-08 "일반/엘리트/보스/특수로 분할, 막 탭 아래"). 최종 우두머리(공허의왕)는 보스에 넣음 */
+  const enRole = v => EN[v].final ? 2 : EN[v].grade;
+  const ROLE_TAB = ['일반', '엘리트', '보스', '특수'];
+  /* 아래 줄 탭: 적은 종류, 모듈은 키워드 (사용자 2026-11-08 "모듈에 키워드 탭도"). 키워드가 둘인 모듈(개전·주기)은 두 탭에 다 나옴 */
+  const modKws = v => MM(v)[0] ? MM(v)[0].split('·') : [];
+  const subOf = k => k === 'enemy' ? v => [String(enRole(v))] : k === 'module' ? modKws : null;
+  function subTabs(k) {
+    if (k === 'enemy') return [...new Set(eList(k).map(enRole))].sort((a, b) => a - b).map(r => [String(r), ROLE_TAB[r], ROLE_CLS[r]]);
+    if (k === 'module') {
+      const all = new Set(eList(k).flatMap(modKws)), ord = Object.keys(KW_CLS);
+      return [...all].sort((a, b) => (ord.indexOf(a) + 1 || 99) - (ord.indexOf(b) + 1 || 99)).map(w => [w, w, KW_CLS[w] ? 'kw-' + KW_CLS[w] : '']);
+    }
+    return [];
+  }
   /* 용어 묶음: 모듈 키워드(발동 조건) · 상태이상 · 그 밖의 용어 */
   const TERM_KW = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 41, 42, 43, 44, 45], TERM_ST = [13, 14, 15, 16, 17, 31, 38, 39, 40];
   const TERM_GROUP = ['모듈 키워드', '상태이상', '용어'];
@@ -1899,7 +1916,8 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   function encyText(k, v) { return norm(eName(k, v) + ' ' + eDesc(k, v) + ' ' + (k === 'module' ? MM(v)[0] : '') + (k === 'enemy' ? ' ' + ROLE_TXT[EN[v].grade] : '')); }
   function encyIds(k, useGroup) {
     const q = norm(ency.q);
-    return eList(k).filter(v => (!q || encyText(k, v).includes(q)) && (!useGroup || ency.g < 0 || eGroup(k, v) === ency.g));
+    return eList(k).filter(v => (!q || encyText(k, v).includes(q)) && (!useGroup || ency.g < 0 || eGroup(k, v) === ency.g) &&
+      (!useGroup || ency.r === '' || !subOf(k) || subOf(k)(v).includes(ency.r)));
   }
   /* 설명 꾸미기: "타격 2:" 같은 발동 조건은 키워드 색 딱지, 상태이상·용어 이름은 점선 밑줄(올리면 설명, 누르면 용어 카드),
    * 숫자는 굵게, 강화 괄호 "(+2)"는 흐리게 */
@@ -1959,6 +1977,11 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const gs = k === 'curse' ? [] : [...new Set(eList(k).map(v => eGroup(k, v)))].sort((a, b) => a - b);
     if (!gs.includes(ency.g)) ency.g = -1;
     $('ency-grades').innerHTML = gs.length > 1 ? ['<button type="button" data-g="-1" class="' + (ency.g < 0 ? 'on' : '') + '">전체</button>'].concat(gs.map(g => '<button type="button" data-g="' + g + '" class="' + groupCls(k, g) + ' tint' + (ency.g === g ? ' on' : '') + '">' + groupLabel(k, g) + '</button>')).join('') : '';
+    const subs = subTabs(k);
+    if (!subs.some(x => x[0] === ency.r)) ency.r = '';
+    $('ency-roles').hidden = !subs.length;
+    $('ency-roles').innerHTML = subs.length ? ['<button type="button" data-r="" class="' + (ency.r === '' ? 'on' : '') + '">전체</button>'].concat(subs.map(([val, label, cls]) =>
+      '<button type="button" data-r="' + esc(val) + '" class="' + cls + ' tint' + (ency.r === val ? ' on' : '') + '">' + esc(label) + '<b class="num">' + eList(k).filter(v => subOf(k)(v).includes(val)).length + '</b></button>')).join('') : '';
     const ids = encyIds(k, true);
     /* 묶음별로: 등급은 하급 → 중급 → 상급 → 하자 (사용자 2026-11-08), 적은 막 순, 용어는 키워드 → 상태이상 → 용어 */
     const groups = {};
@@ -1980,7 +2003,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     setView('ency');
     if (m[1] && ENCY_CATS.some(c => c[0] === m[1])) ency.cat = m[1];
     const id = m[2] !== undefined ? +m[2] : null;
-    if (id !== null && !encyIds(ency.cat, true).includes(id)) { ency.q = ''; ency.g = -1; $('ency-q').value = ''; }
+    if (id !== null && !encyIds(ency.cat, true).includes(id)) { ency.q = ''; ency.g = -1; ency.r = ''; $('ency-q').value = ''; }
     encyRender();
     const card = id !== null && $('e-' + ency.cat + '-' + id);
     if (card) { card.scrollIntoView({ block: 'center' }); card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
@@ -2000,9 +2023,10 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const [k, v] = a.dataset.ency.split('/');
     goEncy(k, +v);
   }, true);
-  $('ency-cats').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.cat = b.dataset.cat; ency.g = -1; history.replaceState(null, '', '#ency/' + ency.cat); encyRender(); });
+  $('ency-cats').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.cat = b.dataset.cat; ency.g = -1; ency.r = ''; history.replaceState(null, '', '#ency/' + ency.cat); encyRender(); });
   $('ency-grades').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.g = +b.dataset.g; encyRender(); });
-  $('ency-grid').addEventListener('click', e => { const b = e.target.closest('[data-kwsearch]'); if (!b) return; ency.q = b.dataset.kwsearch; $('ency-q').value = ency.q; ency.g = -1; goEncy('module'); });
+  $('ency-roles').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.r = b.dataset.r; encyRender(); });
+  $('ency-grid').addEventListener('click', e => { const b = e.target.closest('[data-kwsearch]'); if (!b) return; ency.q = ''; $('ency-q').value = ''; ency.g = -1; ency.r = b.dataset.kwsearch; goEncy('module'); /* 모듈 키워드 탭으로 */ });
   $('ency-q').addEventListener('input', () => { ency.q = $('ency-q').value; encyRender(); });
 
   function renderCheck(lines) {
