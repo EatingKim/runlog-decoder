@@ -1208,7 +1208,10 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   /* ---------- 시트 미리보기: 저장하면 구글 시트에 들어갈 줄들 (아직 보내지 않음) ---------- */
   const RESULT = ['패배', '일반 엔딩', '진 엔딩', '?'];
   const txtN = (t, v) => (named && N[t] && N[t][v]) || (v ? '#' + v : '');
-  function runId(seed, code) { //시드 + 코드 해시 6글자 (같은 기록은 같은 번호 → 중복 저장 막기에도 씀)
+  /* 런 번호: 저장할 때 시트(앱스 스크립트)가 000001부터 차례로 붙임 (사이트는 몇 개 저장됐는지 모름).
+   * 기록 지문: 시드 + 기록 코드 전체의 해시 6글자. 같은 기록은 늘 같은 지문 → 같은 기록을 두 번 저장하지 않게 시트가 확인 */
+  const RUN_NO_EXAMPLE = '000001';
+  function runId(seed, code) {
     let h = 2166136261;
     for (let i = 0; i < code.length; i++) { h ^= code.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
     let t = '';
@@ -1220,12 +1223,13 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     if (!head) return null;
     const end = ev.find(e => e.type === 'end') || null;
     const code = res.lines.map(l => l.text).join('');
-    const id = runId(head.seed, code);
+    const finger = runId(head.seed, code);
+    const id = RUN_NO_EXAMPLE; //미리보기에서는 예시 번호
     const rooms = ev.filter(e => e.type === 'room'), last = rooms[rooms.length - 1];
     const battles = ev.filter(e => e.type === 'battle');
     const st = end && end.state;
     const run = [
-      ['저장 시각', '(저장할 때 시각)'], ['런 번호', id], ['닉네임', '(받기로 하면)'],
+      ['런 번호', id + ' (저장할 때 시트가 차례로 붙임, 지금은 예시)'], ['저장 시각', '(저장할 때 시각)'], ['기록 지문', finger + ' (같은 기록 두 번 저장 막기)'], ['닉네임', '(받기로 하면)'],
       ['기록코드 버전', 'V' + head.ver], ['시드', head.seed], ['난이도', D.DIFF[head.diff] || head.diff],
       ['결과', end ? RESULT[end.ending] : '(기록이 끊김)'], ['도달', last ? last.act + '막 ' + last.floor + '층' : ''],
       ['마지막 전투', end ? txtN('encounter', end.enc) : ''], ['점수', end ? end.score : ''], ['처치', end ? end.kills : ''],
@@ -1274,7 +1278,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     return '<p class="hint">해독한 기록이 구글 시트에 저장될 모양입니다. 아직 어디로도 보내지 않습니다.</p>' +
       '<section class="blk"><div class="blk-h"><h2>런 탭</h2><span class="sum">한 판에 한 줄. 아래는 그 한 줄을 세로로 펼친 것</span></div>' +
       table(['칸', '값'], S.run) + '</section>' +
-      '<section class="blk"><div class="blk-h"><h2>선택 탭</h2><span class="sum">보상 화면 한 번에 한 줄 · ' + S.pickRows.length + '줄</span></div>' +
+      '<section class="blk"><div class="blk-h"><h2>선택 탭</h2><span class="sum">보상 화면 한 번에 한 줄 · ' + S.pickRows.length + '줄 · 런 번호로 런 탭과 이어짐</span></div>' +
       table(['런 번호', '막', '층', '종류', '후보 1', '후보 2', '후보 3', '후보 4', '고른 것'], S.pickRows) + '</section>' +
       '<section class="blk"><div class="blk-h"><h2>층 탭</h2><span class="sum">한 층에 한 줄 · ' + S.floorRows.length + '줄' + (res.ev.find(e => e.type === 'head').ver < 7 ? ' · 체력·골드는 V7 기록부터' : '') + '</span></div>' +
       table(['런 번호', '막', '층', '방', '들어갈 때 체력', '들어갈 때 골드', '전투 상대', '잃은 체력', '전투 시간(초)'], S.floorRows) + '</section>';
