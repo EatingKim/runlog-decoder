@@ -1907,10 +1907,10 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     if (!gs.includes(ency.g)) ency.g = -1;
     $('ency-grades').innerHTML = gs.length > 1 ? ['<button type="button" data-g="-1" class="' + (ency.g < 0 ? 'on' : '') + '">전체</button>'].concat(gs.map(g => '<button type="button" data-g="' + g + '" class="n' + g + (ency.g === g ? ' on' : '') + '">' + GRADE_TXT[Math.min(3, g)] + '</button>')).join('') : '';
     const ids = encyIds(ency.cat, true);
-    /* 등급별로 묶어 위에서부터 상급 → 중급 → 하급 → 하자 */
+    /* 등급별로 묶어 위에서부터 하급 → 중급 → 상급 → 하자 (사용자 2026-11-08) */
     const groups = {};
     ids.forEach(v => { const g = ency.cat === 'curse' ? 9 : gradeOf(ency.cat, v); (groups[g] = groups[g] || []).push(v); });
-    const order = Object.keys(groups).map(Number).sort((a, b) => (a === 3 ? -1 : a) - (b === 3 ? -1 : b)).reverse();
+    const order = Object.keys(groups).map(Number).sort((a, b) => a - b);
     $('ency-grid').innerHTML = ids.length ? order.map(g => '<h2 class="eg-h ' + (g === 9 ? 'gc' : 'g' + g) + '"><span>' + (g === 9 ? '저주' : GRADE_TXT[g]) + '</span><b class="num">' + groups[g].length + '</b></h2>' +
       '<div class="eg">' + groups[g].map(v => encyCard(ency.cat, v)).join('') + '</div>').join('') : '<p class="ency-empty">찾는 항목이 없습니다.</p>';
   }
