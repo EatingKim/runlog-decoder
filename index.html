@@ -1433,10 +1433,13 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   const MM = id => (N.modmeta && N.modmeta[id]) || ['', 0, 0]; //[키워드, 승전 N, 성장 0/1]
   function moduleHistory(ev) {
     let act = 1, floor = 0, wins = 0;
-    const got = [], offers = [];
+    const got = [], offers = [], winAt = [null], seeds = [], events = [], snaps = [];
     for (const e of ev) {
       if (e.type === 'room') { act = e.act; floor = e.floor; }
-      else if (e.type === 'battle') wins++;
+      else if (e.type === 'battle') { wins++; winAt.push({ act, floor }); }
+      else if (e.type === 'gain' && e.kind === 1 && e.v === RL_SEED) seeds.push({ act, floor, wins });
+      else if (e.type === 'event') events.push({ act, floor, wins, id: e.id });
+      else if (e.type === 'act' && e.state) snaps.push({ act: e.act, state: e.state });
       else if (e.type === 'offer') offers.push(e);
       else if (e.type === 'pick' && e.kind === 0) {
         for (let i = offers.length - 1; i >= 0; i--) if (offers[i].kind === 0) { const id = offers[i].ids[e.idx]; if (id) got.push({ id, act, floor, how: '보상', wins }); offers.splice(i, 1); break; }
@@ -1444,7 +1447,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       else if (e.type === 'evpick' && !e.pot) got.push({ id: e.v, act, floor, how: '이벤트', wins });
     }
     got.forEach(g => { g.seg = segOf(g.act, g.floor); });
-    return { got, wins };
+    return { got, wins, winAt, seeds, events, snaps, lastAct: act };
   }
   /* 유물을 언제 어디서 얻었나: 얻음(유물) 기록 + 그 층 방 종류. 같은 층에서 상점 유물 구매가 먼저 있으면 "상점".
    * 첫 방에 들어가기 전에 얻은 것은 "시작" (난이도 시작 보상 등). 유물 후보(무엇이 나왔는지)는 기록되지 않아 픽률은 없음 */
@@ -1478,15 +1481,41 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     for (const id in byId) {
       const list = byId[id].slice().sort((p, q) => (q.x.growth || 0) - (p.x.growth || 0));
       list.forEach(d => { d.g = pool[id] && pool[id].length ? pool[id].shift() : null; });
+      const rest = list.filter(d => !d.g);
+      rest.forEach((d, k) => { d.g = guessSource(+id, k, hist); });
     }
     return out;
+  }
+  /* 기록에 없는 경로로 들어온 모듈 (사용자 2026-11-08 "2번 모듈 거르는건 충분히 가능하잖아"): 인코딩은 그대로 두고 추정.
+   * 1) 몇 막에 들어왔나: 막이 끝날 때 덱 기록에서 그 모듈 수 − 그때까지 기록된 얻음 수가 처음으로 k+1 이상이 되는 막 (k = 같은 모듈 중 몇 번째 미기록인지)
+   * 2) 어디서: 상급이고 그 막에 미지의씨앗이 열매를 맺었으면(얻은 뒤 승리 2번) "미지의씨앗" — 층·승리 수까지 정확함.
+   *    아니면 그 막의 이벤트 중 아직 짝 안 지은 것 → "이벤트(추정)". 그것도 없으면 "기록 없음"으로 막만 앎.
+   * 하수인은 모듈 없이 들어오고(Minion.PM_Add), 모듈 칸을 채우는 유물은 미지의씨앗뿐, 나머지는 이벤트(분사·공허 심기, 하자 박기, 대장장이 바꾸기 등) */
+  const RL_SEED = 18; //src/Relic.eps RL_SEED
+  function guessSource(id, k, hist) {
+    if (!hist.used) hist.used = new Set();
+    const cnt = st => st.minions.reduce((n, m) => n + m.mods.filter(x => x && x.id === id).length, 0);
+    let act = hist.lastAct;
+    for (const sn of hist.snaps) {
+      const logged = hist.got.filter(g => g.id === id && g.act <= sn.act).length;
+      if (cnt(sn.state) - logged > k) { act = sn.act; break; }
+    }
+    const grade = (N.grade.module || [])[id] || 0;
+    if (grade === 2) for (const sd of hist.seeds) {
+      const w = hist.winAt[sd.wins + 2];
+      if (w && w.act === act && !hist.used.has(sd)) { hist.used.add(sd); return { act, floor: w.floor, how: '미지의씨앗', wins: sd.wins + 2, seg: segOf(act, w.floor) }; }
+    }
+    const evs = hist.events.filter(x => x.act === act && !hist.used.has(x));
+    if (evs.length) { const x = grade === 3 ? evs[0] : evs[evs.length - 1]; hist.used.add(x); return { act, floor: x.floor, how: '이벤트(추정)', wins: x.wins, seg: segOf(act, x.floor), ev: x.id }; }
+    return { act, floor: 0, how: '기록 없음', wins: null, seg: act > 1 ? act + '막' : '' };
   }
   /* 쌓인 정도 글: "1막 4층 보상 · 그 뒤 승리 13번 · 승전 1마다 → 13번 발동 · 성장 +24" */
   function stackText(d, totalWins) {
     const meta = MM(d.x.id), parts = [];
-    if (d.g) {
+    if (d.g && d.g.wins === null) parts.push(d.g.act + '막에 들어옴 · 어디서인지 기록 없음');
+    else if (d.g) {
       const after = totalWins - d.g.wins;
-      parts.push(d.g.act + '막 ' + d.g.floor + '층 ' + d.g.how + ' (' + d.g.seg + ')');
+      parts.push(d.g.act + '막 ' + d.g.floor + '층 ' + d.g.how + (d.g.ev !== undefined && named && N.event[d.g.ev] ? ' ' + N.event[d.g.ev] : '') + ' (' + d.g.seg + ')');
       parts.push('그 뒤 승리 ' + after + '번');
       if (meta[1]) parts.push('승전 ' + meta[1] + '마다 → ' + Math.floor(after / meta[1]) + '번 발동');
     } else parts.push('얻은 곳 기록 없음 (시작 덱, 하수인에 딸려 옴, 유물 효과 등)');
@@ -1564,10 +1593,10 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     /* 모듈: 최종 덱의 모듈 하나에 한 줄 */
     const GN = ['하급', '중급', '상급', '하자'];
     const modRows = st ? deckModules(st, hist).map(d => {
-      const meta = MM(d.x.id), after = d.g ? hist.wins - d.g.wins : '';
+      const meta = MM(d.x.id), after = d.g && d.g.wins !== null ? hist.wins - d.g.wins : '';
       return [id, winLose, txtN('minion', d.m.t), d.k + 1, txtN('module', d.x.id), GN[Math.min(3, (N.grade.module || [])[d.x.id] || 0)], meta[0],
-        d.g ? d.g.act + '막 ' + d.g.floor + '층' : '', d.g ? d.g.seg : '', d.g ? d.g.how : '기록 없음', after,
-        meta[1] && d.g ? Math.floor(after / meta[1]) : '', meta[2] || d.x.growth ? d.x.growth : '', d.x.fuse ? txtN('module', d.x.fuse) : ''];
+        d.g ? d.g.act + '막' + (d.g.floor ? ' ' + d.g.floor + '층' : '') : '', d.g ? d.g.seg : '', d.g ? d.g.how : '기록 없음', after,
+        meta[1] && after !== '' ? Math.floor(after / meta[1]) : '', meta[2] || d.x.growth ? d.x.growth : '', d.x.fuse ? txtN('module', d.x.fuse) : ''];
     }) : [];
     /* 모듈 통계 (시트에서는 모든 런을 모아 자동 계산. 여기서는 이 판 하나가 더해지는 몫) */
     const stat = {};
