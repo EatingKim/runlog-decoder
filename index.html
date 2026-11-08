@@ -1437,6 +1437,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   /* 구조 기록 → 막 · 층 묶음 */
   let chartPts = [];
   function renderMap(ev) {
+    let chartH = '';
     const offers = [];
     for (const e of ev) {
       if (e.type === 'offer') offers.push(e);
@@ -1497,7 +1498,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       /* 체력·골드 그래프 (사용자 2026-11-08): 판 7부터 방마다 남는 체력·골드. 축이 다른 두 값이라 그래프를 둘로 나눔 */
       chartPts = [];
       acts.forEach((a, ai) => a.floors.forEach((f, fi) => { const r = f.e; if (r && r.cur) chartPts.push({ act: a.n, floor: r.floor, hp: r.cur.hp, max: r.cur.max, gold: r.cur.gold, ai, fi }); }));
-      if (chartPts.length >= 2) h += '<section class="panel hg" id="hg"><div class="blk-h"><h2>체력 · 골드</h2><span class="sum">방에 들어갈 때 값 · 올리면 그 층, 누르면 층 내용</span></div>' +
+      if (chartPts.length >= 2) chartH = '<section class="panel hg" id="hg"><div class="blk-h"><h2>체력 · 골드</h2><span class="sum">방에 들어갈 때 값 · 올리면 그 층, 누르면 층 내용</span></div>' +
         '<div class="hg-box" id="hg-box"><p class="hg-t"><i class="hg-sw hp"></i>체력 <span class="dim">(점선 = 최대체력)</span></p><svg class="hg-svg" id="hg-hp" role="img" aria-label="층마다 체력"></svg>' +
         '<p class="hg-t"><i class="hg-sw gd"></i>골드</p><svg class="hg-svg" id="hg-gold" role="img" aria-label="층마다 골드"></svg><div class="hg-tip" id="hg-tip" hidden></div></div></section>';
       else chartPts = [];
@@ -1532,6 +1533,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       h += '<div class="board">' + deckH + relicH + '</div>';
     }
     for (const w of warn) h += '<div class="warn-row">' + esc(w) + '</div>';
+    h += chartH; //체력·골드 그래프는 맨 아래 (사용자 2026-11-08 "한 눈에 안 들어와서 맨 아래로")
     h += '<details class="raw"><summary>글로 보기</summary><div class="raw-bar"><button type="button" id="btn-copy">글 복사</button><span class="toast2" id="toast2" role="status"></span></div><pre>' + esc(lastLog) + '</pre></details>';
     return { html: h, head, end, acts };
   }
