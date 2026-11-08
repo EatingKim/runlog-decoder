@@ -55,6 +55,11 @@ button:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2
 textarea { width: 100%; box-sizing: border-box; min-height: calc(1.6em * 3 + 22px); resize: vertical; background: var(--rock); color: var(--bone);
   border: 1px solid var(--seam); border-radius: 2px; padding: 10px; font-family: var(--f-mono); font-size: 0.8rem; line-height: 1.6; }
 /* 사진 올리기 (맨 위, 화면 폭 전체) */
+.consent { display: grid; gap: 4px; font-size: 0.82rem; border-top: 1px dashed var(--seam); padding-top: 10px; }
+.consent label { font-weight: 600; color: var(--bone); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.consent input { accent-color: var(--void); width: 16px; height: 16px; }
+.save-st { min-height: 1.2em; }
+.save-st.ok { color: var(--ok); } .save-st.warn { color: var(--warn); } .save-st.bad { color: var(--bad); }
 .code-in { margin-top: 12px; }
 .code-in .label { margin-bottom: 6px; }
 .code-st { font-size: 0.82rem; color: var(--dust); margin-top: 6px; display: grid; gap: 2px; }
@@ -232,6 +237,11 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
     </div>
     <div class="thumbs" id="thumbs"></div>
     <span class="ocr-status" id="ocr-status" role="status"></span>
+    <div class="consent" id="consent" hidden>
+      <label><input type="checkbox" id="agree"> 기록 저장에 동의</label>
+      <span class="dim">해독한 런 기록(시드, 지나간 층, 고른 모듈, 덱, 유물 등)은 게임 밸런스 개선을 위해 제작자의 구글 시트에 저장됩니다. 이름이나 계정 같은 개인 정보는 저장하지 않습니다. 동의하면 이 브라우저가 기억해, 다음부터 온전한 기록은 변환할 때 자동으로 저장됩니다.</span>
+      <span class="save-st" id="save-st" role="status"></span>
+    </div>
   </section>
 
   <div class="code-in">
@@ -242,12 +252,7 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
 
   <div class="hero" id="hero"></div>
 
-  <div class="tabs" role="tablist" id="tabs" hidden>
-    <button type="button" role="tab" data-tab="map" aria-selected="true">런 지도</button>
-    <button type="button" role="tab" data-tab="sheet" aria-selected="false">시트 미리보기</button>
-  </div>
   <main class="map" id="map"></main>
-  <section class="sheet" id="sheet" hidden></section>
 </div>
 
 <script>
@@ -1310,21 +1315,21 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const hist = moduleHistory(ev);
     const winLose = !end ? '(끊김)' : end.ending >= 1 ? '승리' : '패배'; //일반·진 엔딩 = 승리
     const run = [
-      ['런 번호', id + ' (버전-시드-그 시드의 저장 횟수. 횟수는 저장할 때 시트가 정함, 지금은 예시)'], ['저장 시각', '(저장할 때 시각)'], ['기록 지문', finger + ' (같은 기록 두 번 저장 막기)'], ['닉네임', '(받기로 하면)'],
+      ['런 번호', id], ['저장 시각', ''], ['기록 지문', finger], ['닉네임', ''],
       ['기록코드 버전', 'V' + head.ver], ['시드', head.seed], ['난이도', D.DIFF[head.diff] || head.diff],
       ['결과', end ? RESULT[end.ending] : '(기록이 끊김)'], ['도달', last ? last.act + '막 ' + last.floor + '층' : ''],
       ['마지막 전투', end ? txtN('encounter', end.enc) : ''], ['점수', end ? end.score : ''], ['처치', end ? end.kills : ''],
       ['전투 수', battles.length], ['잃은 체력 합', battles.reduce((a, b) => a + b.lost, 0)],
-      ['전투 시간 합(초)', battles.reduce((a, b) => a + b.sec, 0) + (head.ver < 7 ? ' (10초 단위)' : '')],
+      ['전투 시간 합(초)', battles.reduce((a, b) => a + b.sec, 0)], ['전투 시간 단위', head.ver < 7 ? '10초' : '1초'],
       ['끝날 때 체력', st ? st.hp + '/' + st.mhp : ''], ['끝날 때 골드', st ? st.gold : ''],
       ['최종 하수인', st ? st.minions.map(m => txtN('minion', m.t)).join(', ') : ''],
       ['최종 모듈', st ? st.minions.map(m => txtN('minion', m.t) + '[' + m.mods.filter(Boolean).map(x => txtN('module', x.id)).join('/') + ']').join('; ') : ''],
       ['유물', end ? end.relics.map(v => txtN('relic', v)).join(', ') : ''],
       ['저주', end ? end.curses.map(c => txtN('curse', c.id) + '×' + c.n).join(', ') : ''],
       ['물약', end ? end.potions.filter(v => v > 0).map(v => txtN('potion', v)).join(', ') : ''],
-      ...SEGS.map(sg => [sg + ' 모듈' + (sg === '최저층' ? ' (1막 1~5층)' : sg === '저층' ? ' (1막 6~15층)' : ''),
+      ...SEGS.map(sg => [sg + ' 모듈', //최저층 = 1막 1~5층, 저층 = 1막 6~15층
         hist.got.filter(g => g.seg === sg).map(g => txtN('module', g.id) + (g.how === '보상' ? '' : '(' + g.how + ')')).join(', ')]),
-      ['기록 코드 원문', code.length + '자: ' + code.slice(0, 24) + '…'],
+      ['기록 코드', code],
     ];
     /* 선택: 보상 후보 한 번에 한 줄 (고른 순번은 바로 뒤 고름 기록) */
     const picks = [];
@@ -1389,43 +1394,58 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     }) : [];
     /* 유물 통계 (시트에서는 모든 런을 모아 자동 계산) */
     const relicStatRows = relicRows.map(r => [r[2], r[3], 1, r[1] === '승리' ? 1 : 0, r[1] === '패배' ? 1 : 0, r[1] === '승리' ? '100%' : r[1] === '패배' ? '0%' : '', r[5] === '최저층' ? 1 : 0, r[5] === '저층' ? 1 : 0, r[6]]);
-    return { run, pickRows, floorRows, modRows, statRows, relicRows, relicStatRows };
+    return { finger, run, pickRows, floorRows, modRows, statRows, relicRows, relicStatRows };
   }
   function table(head, rows) {
     return '<div class="tbl-wrap"><table class="sh"><thead><tr>' + head.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' +
       rows.map(r => '<tr>' + r.map(c => '<td>' + esc(c === undefined || c === null ? '' : c) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
   }
-  function sheetPreview(res) {
+  /* ---------- 기록 저장 (구글 시트, tools/runlog/sheet/Code.gs) ----------
+   * 동의(체크, 이 브라우저가 기억)한 상태에서 온전한 기록(모든 줄 확인 글자 맞음 + 런 끝까지)만 자동 저장.
+   * 런 번호(V버전-시드-그 시드의 저장 횟수)·저장 시각은 시트가 붙이고, 같은 기록은 기록 지문으로 걸러짐 */
+  const SAVE_URL = 'https://script.google.com/macros/s/AKfycbxIBcPuZ96nnvNomtk65lXb_qVDEQupzusD5KYh_AUyNfhURhHkcGinazMti1rQPzcH/exec';
+  const CAN_SAVE = /github\.io$/.test(location.hostname) || location.protocol === 'file:'; //claude.ai 미리보기 등에서는 밖으로 보낼 수 없음
+  const savedFp = {};
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
+  const HEAD = {
+    '선택': ['결과', '막', '층', '구간', '종류', '후보 1', '후보 2', '후보 3', '후보 4', '고른 것'],
+    '모듈': ['결과', '하수인', '칸', '모듈', '등급', '키워드', '얻은 곳', '구간', '얻은 방법', '그 뒤 승리', '승전 발동', '성장치', '합성'],
+    '유물': ['결과', '유물', '등급', '얻은 곳', '구간', '얻은 방법', '그 뒤 승리'],
+    '층': ['막', '층', '방', '들어갈 때 체력', '들어갈 때 골드', '전투 상대', '잃은 체력', '전투 시간(초)'],
+  };
+  const SKIP_RUN = ['런 번호', '저장 시각', '기록 지문', '닉네임'];
+  function buildPayload(res) {
     const S = sheetRows(res);
-    if (!S) return '';
-    return '<p class="hint">해독한 기록이 구글 시트에 저장될 모양입니다. 아직 어디로도 보내지 않습니다.</p>' +
-      '<section class="blk"><div class="blk-h"><h2>런 탭</h2><span class="sum">한 판에 한 줄. 아래는 그 한 줄을 세로로 펼친 것</span></div>' +
-      table(['칸', '값'], S.run) + '</section>' +
-      '<section class="blk"><div class="blk-h"><h2>선택 탭</h2><span class="sum">보상 화면 한 번에 한 줄 · ' + S.pickRows.length + '줄 · 런 번호로 런 탭과 이어짐</span></div>' +
-      table(['런 번호', '결과', '막', '층', '구간', '종류', '후보 1', '후보 2', '후보 3', '후보 4', '고른 것'], S.pickRows) + '</section>' +
-      '<section class="blk"><div class="blk-h"><h2>모듈 탭</h2><span class="sum">최종 덱의 모듈 하나에 한 줄 · ' + S.modRows.length + '줄 · 승전 발동 = 얻은 뒤 승리 수 ÷ 승전 N</span></div>' +
-      table(['런 번호', '결과', '하수인', '칸', '모듈', '등급', '키워드', '얻은 곳', '구간', '얻은 방법', '그 뒤 승리', '승전 발동', '성장치', '합성'], S.modRows) + '</section>' +
-      '<section class="blk"><div class="blk-h"><h2>모듈 통계 탭</h2><span class="sum">시트가 모든 런을 모아 자동 계산 · 아래는 이 판 하나가 더해지는 몫</span></div>' +
-      '<p class="hint">등장 = 보상 후보로 나온 횟수 · 픽률 = 고름 ÷ 등장 · 승률 = 그 모듈을 고른 런 중 승리(일반·진 엔딩) 비율, 한 런에 여러 번 골라도 한 번으로 셈</p>' +
-      table(['모듈', '등급', '키워드', '등장한 런', '등장', '고름', '픽률', '최저층 고름/등장', '저층 고름/등장', '고른 런 승', '고른 런 패', '승률'], S.statRows) + '</section>' +
-      '<section class="blk"><div class="blk-h"><h2>유물 탭</h2><span class="sum">런이 끝날 때 가진 유물 하나에 한 줄 · ' + S.relicRows.length + '줄</span></div>' +
-      table(['런 번호', '결과', '유물', '등급', '얻은 곳', '구간', '얻은 방법', '그 뒤 승리'], S.relicRows) + '</section>' +
-      '<section class="blk"><div class="blk-h"><h2>유물 통계 탭</h2><span class="sum">시트가 모든 런을 모아 자동 계산 · 아래는 이 판 하나가 더해지는 몫</span></div>' +
-      '<p class="hint">유물은 후보(무엇이 나왔는지)가 기록되지 않아 등장·픽률은 없음. 보유한 런의 승률과 얻은 구간·방법을 셈</p>' +
-      table(['유물', '등급', '보유한 런', '승', '패', '승률', '최저층에서 얻음', '저층에서 얻음', '얻은 방법'], S.relicStatRows) + '</section>' +
-      '<section class="blk"><div class="blk-h"><h2>층 탭</h2><span class="sum">한 층에 한 줄 · ' + S.floorRows.length + '줄' + (res.ev.find(e => e.type === 'head').ver < 7 ? ' · 체력·골드는 V7 기록부터' : '') + '</span></div>' +
-      table(['런 번호', '막', '층', '방', '들어갈 때 체력', '들어갈 때 골드', '전투 상대', '잃은 체력', '전투 시간(초)'], S.floorRows) + '</section>';
+    if (!S) return null;
+    const head = res.ev.find(e => e.type === 'head');
+    const run = {};
+    for (const [k, v] of S.run) if (SKIP_RUN.indexOf(k) < 0) run[k] = v;
+    const objs = (cols, rows) => rows.map(r => { const o = {}; cols.forEach((c, i) => { o[c] = r[i + 1]; }); return o; }); //줄 맨 앞 런 번호는 시트가 붙임
+    return {
+      fp: S.finger, ver: head.ver, seed: head.seed, nick: '',
+      tabs: { '런': run, '선택': objs(HEAD['선택'], S.pickRows), '모듈': objs(HEAD['모듈'], S.modRows), '유물': objs(HEAD['유물'], S.relicRows), '층': objs(HEAD['층'], S.floorRows) },
+    };
   }
-  /* 탭 전환 */
-  document.addEventListener('click', e => {
-    const b = e.target.closest('#tabs [data-tab]');
-    if (!b) return;
-    const k = b.dataset.tab;
-    $('tabs').querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false'));
-    $('map').hidden = k !== 'map';
-    $('sheet').hidden = k !== 'sheet';
-  });
-
+  function saveSay(m, cls) { const el = $('save-st'); el.textContent = m; el.className = 'save-st ' + (cls || ''); }
+  async function maybeSave(res) {
+    if (!CAN_SAVE || !$('agree').checked) { saveSay(''); return; }
+    const bad = res.lines.filter(l => l.status !== 'ok' && l.status !== 'fixed').length;
+    if (bad) { saveSay('확인이 필요한 줄이 ' + bad + '개 있어 저장하지 않았습니다. 줄을 고친 뒤 코드 확인을 누르면 저장됩니다.', 'warn'); return; }
+    if (!res.ev.find(e => e.type === 'end') || res.ev.find(e => e.type === 'cut' || e.type === 'stop')) { saveSay('런 끝까지 이어진 기록이 아니라 저장하지 않았습니다. 빠진 쪽이 있는지 확인하세요.', 'warn'); return; }
+    const p = buildPayload(res);
+    if (!p) return;
+    if (savedFp[p.fp]) { saveSay(savedFp[p.fp], 'ok'); return; }
+    saveSay('기록을 저장하는 중…');
+    try {
+      const r = await fetch(SAVE_URL, { method: 'POST', body: JSON.stringify(p) }); //글 형식으로 보내 사전 확인 요청 없이
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || '저장 실패');
+      savedFp[p.fp] = (j.dup ? '이미 저장된 기록입니다 · ' : '기록이 저장되었습니다 · ') + j.runNo;
+      saveSay(savedFp[p.fp], 'ok');
+    } catch (e) {
+      saveSay('기록을 저장하지 못했습니다: ' + e.message + '. 잠시 뒤 코드 확인을 다시 눌러 보세요.', 'bad');
+    }
+  }
   function encName(id) { return '<span>' + esc((named && N.encounter[id]) || '편성 ' + id) + '</span>'; }
   function item(e) {
     switch (e.type) {
@@ -1572,8 +1592,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       $('code-st').innerHTML = '';
       $('hero').innerHTML = '<p class="seed"><small>시드</small>—</p><p class="empty">스크린샷을 올리고 변환을 누르거나, 코드를 붙이고 코드 확인을 누르면 런 지도가 나옵니다.</p>';
       $('map').innerHTML = '';
-      $('sheet').innerHTML = '';
-      $('tabs').hidden = true;
+      $('save-st').textContent = '';
       lastLog = '';
       return;
     }
@@ -1584,8 +1603,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     named = !head || head.named;
     const m = renderMap(res.ev);
     $('map').innerHTML = m.html;
-    $('sheet').innerHTML = sheetPreview(res);
-    $('tabs').hidden = false;
+    maybeSave(res);
     if (!head) { $('hero').innerHTML = '<p class="empty">해독할 수 있는 줄이 없습니다.</p>'; return; }
     const lastRoom = [...res.ev].reverse().find(e => e.type === 'room');
     const f = [];
@@ -1733,6 +1751,11 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     if (files.length) { e.preventDefault(); addFiles(files); }
   });
 
+  if (CAN_SAVE) {
+    $('consent').hidden = false;
+    $('agree').checked = store.get('runlog-agree') === '1';
+    $('agree').addEventListener('change', () => { store.set('runlog-agree', $('agree').checked ? '1' : '0'); if ($('agree').checked && src.value.trim()) render(); else saveSay(''); });
+  }
   drawQueue();
   render();
 })();
