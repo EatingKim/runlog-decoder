@@ -141,6 +141,16 @@ button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 .mc-h { font-weight: 800; }
 .mc-s { font-size: 0.78rem; color: var(--dust); }
 .mc-m { display: grid; gap: 1px; font-size: 0.85rem; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--seam); margin-top: 6px; }
+.tabs button { border: 1px solid transparent; border-bottom: 0; border-radius: 3px 3px 0 0; padding: 7px 16px; color: var(--dust); background: transparent; font-weight: 600; }
+.tabs button[aria-selected="true"] { color: var(--bone); background: var(--rock); border-color: var(--seam); }
+.tabs button:hover { color: var(--bone); border-color: var(--seam); }
+.sheet { display: grid; gap: 22px; margin-top: 14px; }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--seam); }
+table.sh { border-collapse: collapse; font-size: 0.8rem; min-width: 100%; }
+table.sh th { position: sticky; top: 0; background: var(--rock); color: var(--dust); font-weight: 600; text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--seam); white-space: nowrap; }
+table.sh td { padding: 5px 10px; border-top: 1px solid var(--seam); vertical-align: top; font-variant-numeric: tabular-nums; }
+table.sh td:first-child { white-space: nowrap; }
 .endline { color: var(--dust); font-size: 0.85rem; margin: 0; }
 .pr.tot b { color: var(--bone); font-weight: 600; }
 .pr.actend { border-top: 1px solid var(--seam); padding-top: 4px; margin-top: 2px; }
@@ -230,7 +240,12 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
 
   <div class="hero" id="hero"></div>
 
+  <div class="tabs" role="tablist" id="tabs" hidden>
+    <button type="button" role="tab" data-tab="map" aria-selected="true">런 지도</button>
+    <button type="button" role="tab" data-tab="sheet" aria-selected="false">시트 미리보기</button>
+  </div>
   <main class="map" id="map"></main>
+  <section class="sheet" id="sheet" hidden></section>
 </div>
 
 <script>
@@ -1190,6 +1205,90 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     h += '<details class="raw"><summary>글로 보기</summary><div class="raw-bar"><button type="button" id="btn-copy">글 복사</button><span class="toast2" id="toast2" role="status"></span></div><pre>' + esc(lastLog) + '</pre></details>';
     return { html: h, head, end, acts };
   }
+  /* ---------- 시트 미리보기: 저장하면 구글 시트에 들어갈 줄들 (아직 보내지 않음) ---------- */
+  const RESULT = ['패배', '일반 엔딩', '진 엔딩', '?'];
+  const txtN = (t, v) => (named && N[t] && N[t][v]) || (v ? '#' + v : '');
+  function runId(seed, code) { //시드 + 코드 해시 6글자 (같은 기록은 같은 번호 → 중복 저장 막기에도 씀)
+    let h = 2166136261;
+    for (let i = 0; i < code.length; i++) { h ^= code.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    let t = '';
+    for (let i = 0; i < 6; i++) { t += D.ALPHA[h & 31]; h >>>= 5; }
+    return seed + '-' + t;
+  }
+  function sheetRows(res) {
+    const ev = res.ev, head = ev.find(e => e.type === 'head');
+    if (!head) return null;
+    const end = ev.find(e => e.type === 'end') || null;
+    const code = res.lines.map(l => l.text).join('');
+    const id = runId(head.seed, code);
+    const rooms = ev.filter(e => e.type === 'room'), last = rooms[rooms.length - 1];
+    const battles = ev.filter(e => e.type === 'battle');
+    const st = end && end.state;
+    const run = [
+      ['저장 시각', '(저장할 때 시각)'], ['런 번호', id], ['닉네임', '(받기로 하면)'],
+      ['기록코드 버전', 'V' + head.ver], ['시드', head.seed], ['난이도', D.DIFF[head.diff] || head.diff],
+      ['결과', end ? RESULT[end.ending] : '(기록이 끊김)'], ['도달', last ? last.act + '막 ' + last.floor + '층' : ''],
+      ['마지막 전투', end ? txtN('encounter', end.enc) : ''], ['점수', end ? end.score : ''], ['처치', end ? end.kills : ''],
+      ['전투 수', battles.length], ['잃은 체력 합', battles.reduce((a, b) => a + b.lost, 0)],
+      ['전투 시간 합(초)', battles.reduce((a, b) => a + b.sec, 0) + (head.ver < 7 ? ' (10초 단위)' : '')],
+      ['끝날 때 체력', st ? st.hp + '/' + st.mhp : ''], ['끝날 때 골드', st ? st.gold : ''],
+      ['최종 하수인', st ? st.minions.map(m => txtN('minion', m.t)).join(', ') : ''],
+      ['최종 모듈', st ? st.minions.map(m => txtN('minion', m.t) + '[' + m.mods.filter(Boolean).map(x => txtN('module', x.id)).join('/') + ']').join('; ') : ''],
+      ['유물', end ? end.relics.map(v => txtN('relic', v)).join(', ') : ''],
+      ['저주', end ? end.curses.map(c => txtN('curse', c.id) + '×' + c.n).join(', ') : ''],
+      ['물약', end ? end.potions.filter(v => v > 0).map(v => txtN('potion', v)).join(', ') : ''],
+      ['기록 코드 원문', code.length + '자: ' + code.slice(0, 24) + '…'],
+    ];
+    /* 선택: 보상 후보 한 번에 한 줄 (고른 순번은 바로 뒤 고름 기록) */
+    const picks = [];
+    let act = 1, floor = 0;
+    const offers = [];
+    for (const e of ev) {
+      if (e.type === 'room') { act = e.act; floor = e.floor; }
+      if (e.type === 'offer') { const o = { act, floor, kind: e.kind, ids: e.ids, pick: null }; offers.push(o); picks.push(o); }
+      if (e.type === 'pick') { for (let i = offers.length - 1; i >= 0; i--) if (offers[i].kind === e.kind) { offers[i].pick = e.idx; break; } }
+    }
+    const pickRows = picks.map(o => {
+      const t = o.kind ? 'minion' : 'module';
+      const c = [0, 1, 2, 3].map(i => o.ids[i] !== undefined ? txtN(t, o.ids[i]) : '');
+      return [id, o.act, o.floor, o.kind ? '하수인' : '모듈', c[0], c[1], c[2], c[3], o.pick !== null && o.ids[o.pick] !== undefined ? txtN(t, o.ids[o.pick]) : '(안 고름)'];
+    });
+    /* 층: 방마다 한 줄 */
+    const floorRows = [];
+    let cur = null;
+    const flush = () => { if (cur) floorRows.push([id, cur.act, cur.floor, D.ROOM[cur.room] || cur.room, cur.cur ? cur.cur.hp + '/' + cur.cur.max : '', cur.cur ? cur.cur.gold : '', cur.enc, cur.lost, cur.sec]); };
+    for (const e of ev) {
+      if (e.type === 'room') { flush(); cur = { act: e.act, floor: e.floor, room: e.room, cur: e.cur, enc: '', lost: '', sec: '' }; }
+      if (e.type === 'battle' && cur) { cur.enc = txtN('encounter', e.enc); cur.lost = e.lost; cur.sec = e.sec; }
+    }
+    flush();
+    return { run, pickRows, floorRows };
+  }
+  function table(head, rows) {
+    return '<div class="tbl-wrap"><table class="sh"><thead><tr>' + head.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' +
+      rows.map(r => '<tr>' + r.map(c => '<td>' + esc(c === undefined || c === null ? '' : c) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+  }
+  function sheetPreview(res) {
+    const S = sheetRows(res);
+    if (!S) return '';
+    return '<p class="hint">해독한 기록이 구글 시트에 저장될 모양입니다. 아직 어디로도 보내지 않습니다.</p>' +
+      '<section class="blk"><div class="blk-h"><h2>런 탭</h2><span class="sum">한 판에 한 줄. 아래는 그 한 줄을 세로로 펼친 것</span></div>' +
+      table(['칸', '값'], S.run) + '</section>' +
+      '<section class="blk"><div class="blk-h"><h2>선택 탭</h2><span class="sum">보상 화면 한 번에 한 줄 · ' + S.pickRows.length + '줄</span></div>' +
+      table(['런 번호', '막', '층', '종류', '후보 1', '후보 2', '후보 3', '후보 4', '고른 것'], S.pickRows) + '</section>' +
+      '<section class="blk"><div class="blk-h"><h2>층 탭</h2><span class="sum">한 층에 한 줄 · ' + S.floorRows.length + '줄' + (res.ev.find(e => e.type === 'head').ver < 7 ? ' · 체력·골드는 V7 기록부터' : '') + '</span></div>' +
+      table(['런 번호', '막', '층', '방', '들어갈 때 체력', '들어갈 때 골드', '전투 상대', '잃은 체력', '전투 시간(초)'], S.floorRows) + '</section>';
+  }
+  /* 탭 전환 */
+  document.addEventListener('click', e => {
+    const b = e.target.closest('#tabs [data-tab]');
+    if (!b) return;
+    const k = b.dataset.tab;
+    $('tabs').querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false'));
+    $('map').hidden = k !== 'map';
+    $('sheet').hidden = k !== 'sheet';
+  });
+
   function encName(id) { return '<span>' + esc((named && N.encounter[id]) || '편성 ' + id) + '</span>'; }
   function item(e) {
     switch (e.type) {
@@ -1334,6 +1433,8 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       $('code-st').innerHTML = '';
       $('hero').innerHTML = '<p class="seed"><small>시드</small>—</p><p class="empty">스크린샷을 올리고 변환을 누르거나, 코드를 붙이고 코드 확인을 누르면 런 지도가 나옵니다.</p>';
       $('map').innerHTML = '';
+      $('sheet').innerHTML = '';
+      $('tabs').hidden = true;
       lastLog = '';
       return;
     }
@@ -1344,6 +1445,8 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     named = !head || head.named;
     const m = renderMap(res.ev);
     $('map').innerHTML = m.html;
+    $('sheet').innerHTML = sheetPreview(res);
+    $('tabs').hidden = false;
     if (!head) { $('hero').innerHTML = '<p class="empty">해독할 수 있는 줄이 없습니다.</p>'; return; }
     const lastRoom = [...res.ev].reverse().find(e => e.type === 'room');
     const f = [];
