@@ -2178,24 +2178,72 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   let chartW = 0;
   addEventListener('resize', () => { const b = $('hg-box'); if (b && b.clientWidth !== chartW) { chartW = b.clientWidth; drawChart(); } });
 
-  /* ===== 공유 링크 ===== 주소 #r= 뒤에 기록 코드 (줄마다 72글자, 확인 글자는 받는 쪽이 다시 계산). 서버에 아무것도 보내지 않음 */
+  /* ===== 공유 링크 ===== (사용자 2026-11-08 "더 짧게")
+   * 1) 짧은 링크 #s=기록지문 (예 #s=276750-XHBXVE): 링크 복사를 누르면 기록 코드를 시트(앱스 스크립트 '공유' 탭)에 맡기고 지문만 주소에 넣음.
+   *    여는 쪽은 시트에서 코드를 받아 옴. 시트가 안 되면(스크립트가 예전 판, 연결 안 됨) 2)로
+   * 2) 긴 링크 #r=b…: 기록 코드 자체를 주소에 (5비트 글자들을 6비트 글자로 다시 담아 예전보다 약 1/6 짧음). 서버에 아무것도 보내지 않음
+   * 예전 긴 링크(#r=줄-줄-…)도 그대로 열림 */
   function shareCode(res) {
     if (!res.lines.length || res.lines.some(l => l.status !== 'ok' && l.status !== 'fixed')) return '';
     return res.lines.map(l => l.text).join('-');
   }
+  const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  const linesOf = syms => { const out = []; for (let i = 0; i < syms.length; i += D.LINE_SYMS) { const ch = syms.slice(i, i + D.LINE_SYMS); out.push(ch.map(c => D.ALPHA[c]).join('') + ' ' + D.ALPHA[D.check(ch)]); } return out.join('\n'); };
+  function packShare(code) { //'줄-줄' → 'b' + (글자 수 % 6) + 6비트 글자들
+    const syms = [...code.replace(/-/g, '')].map(c => D.ALPHA.indexOf(c));
+    let out = 'b' + (syms.length % 6), acc = 0, an = 0;
+    for (const v of syms) { acc |= v << an; an += 5; while (an >= 6) { out += B64[acc & 63]; acc >>= 6; an -= 6; } }
+    if (an) out += B64[acc & 63];
+    return out;
+  }
   function codeFromShare(t) {
+    if (t[0] === 'b') { //6비트로 담은 것
+      const m = +t[1], chars = t.slice(2);
+      let n = Math.floor(chars.length * 6 / 5);
+      while (n % 6 !== m && n > 0) n--;
+      const syms = []; let acc = 0, an = 0;
+      for (const c of chars) { const v = B64.indexOf(c); if (v < 0) return ''; acc |= v << an; an += 6; while (an >= 5 && syms.length < n) { syms.push(acc & 31); acc >>= 5; an -= 5; } }
+      return linesOf(syms);
+    }
     return t.split('-').filter(x => /^[2-9A-HJ-NP-Z]+$/.test(x)).map(x => x + ' ' + D.ALPHA[D.check([...x].map(c => D.ALPHA.indexOf(c)))]).join('\n');
   }
   let lastRes = null;
+  async function shortLink(res, code) { //시트에 맡기고 지문을 받음. 8초 안에 안 되면 ''
+    const head = res.ev.find(e => e.type === 'head');
+    if (!SAVE_URL || !head) return '';
+    const fp = runId(head.seed, res.lines.map(l => l.text).join(''));
+    try {
+      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 8000);
+      const r = await fetch(SAVE_URL, { method: 'POST', body: JSON.stringify({ action: 'share', fp, code }), signal: ctl.signal });
+      clearTimeout(timer);
+      const j = await r.json();
+      return j.ok && j.id ? j.id : '';
+    } catch (err) { return ''; }
+  }
   document.addEventListener('click', async e => {
-    if (!e.target.closest('#btn-share') || !lastRes) return;
-    const url = location.origin + location.pathname + location.search + '#r=' + shareCode(lastRes);
+    const btn = e.target.closest('#btn-share');
+    if (!btn || !lastRes) return;
+    const st = $('share-st'), code = shareCode(lastRes);
+    btn.disabled = true; st.textContent = '링크 만드는 중…';
+    const id = await shortLink(lastRes, code);
+    const url = location.origin + location.pathname + location.search + (id ? '#s=' + id : '#r=' + packShare(code));
+    btn.disabled = false;
     let ok = false;
     try { await navigator.clipboard.writeText(url); ok = true; } catch (err) { }
-    const st = $('share-st');
-    if (ok) st.textContent = '복사했습니다. 메신저 등에 붙여 넣으면 됩니다';
+    if (ok) st.textContent = (id ? '짧은 링크를 복사했습니다' : '링크를 복사했습니다 (짧은 링크를 만들지 못해 기록 코드를 주소에 담음)') + '. 메신저 등에 붙여 넣으면 됩니다';
     else { st.textContent = ''; prompt('이 주소를 복사하세요', url); }
   });
+  async function openShort(id) { //#s=지문 → 시트에서 코드를 받아 해독
+    $('code-st').innerHTML = '<span>공유된 기록을 불러오는 중…</span>';
+    try {
+      const r = await fetch(SAVE_URL + '?s=' + encodeURIComponent(id));
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || '');
+      setText(codeFromShare(j.code));
+    } catch (err) {
+      $('code-st').innerHTML = '<span class="bad">공유된 기록을 불러오지 못했습니다' + (err.message ? ': ' + esc(err.message) : '') + '</span>';
+    }
+  }
 
   /* ===== 최근 기록 ===== 이 브라우저에만 저장 (최대 20개). 누르면 다시 엶 */
   const RECENT_KEY = 'runlog-recent', RECENT_MAX = 20;
@@ -2259,7 +2307,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       '<div class="rc-top"><div class="rc-res"><span class="rc-badge">' + resTxt + '</span>' +
       (lastRoom ? '<span class="rc-where">' + lastRoom.act + '막 ' + lastRoom.floor + '층' + (end ? ' · ' + esc(txtN('encounter', end.enc)) : '') + '</span>' : '') + '</div>' +
       '<div class="rc-seed"><small>시드</small><span class="num">' + head.seed + '</span></div></div>' +
-      (shareCode(res) ? '<div class="rc-share"><button type="button" id="btn-share">링크 복사</button><span class="dim" id="share-st">이 기록을 그대로 보여 주는 주소</span></div>' : '') +
+      (shareCode(res) ? '<div class="rc-share"><button type="button" id="btn-share">링크 복사</button><span class="dim" id="share-st">이 기록을 그대로 보여 주는 주소 (짧은 링크는 기록 코드를 제작자 시트에 맡김)</span></div>' : '') +
       '<dl class="rc-stats">' +
       stat('난이도', D.DIFF[head.diff] || head.diff) +
       (end ? stat('점수', end.score) + stat('처치', end.kills) : '') +
@@ -2420,9 +2468,11 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     $('agree').addEventListener('change', () => { store.set('runlog-agree', $('agree').checked ? '1' : '0'); agreeShow(); if ($('agree').checked && src.value.trim()) render(); else saveSay(''); });
   }
   drawQueue();
-  const shared = /^#r=([0-9A-Za-z-]+)/.exec(location.hash);
-  if (shared) { src.value = codeFromShare(shared[1].toUpperCase()); history.replaceState(null, '', location.pathname + location.search); } //받은 공유 링크: 코드를 채우고 주소는 깨끗하게
+  const shared = /^#r=([0-9A-Za-z_-]+)/.exec(location.hash), shortId = /^#s=([0-9]+-[0-9A-Z]{6})/.exec(location.hash);
+  if (shared || shortId) history.replaceState(null, '', location.pathname + location.search); //받은 공유 링크: 코드를 채우고 주소는 깨끗하게
+  if (shared) src.value = codeFromShare(shared[1]);
   render();
+  if (shortId) openShort(shortId[1]);
   if (location.hash) applyHash();
 })();
 </script>
