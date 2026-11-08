@@ -60,7 +60,8 @@ textarea { width: 100%; box-sizing: border-box; min-height: calc(1.6em * 3 + 22p
 .consent.on { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--ground)); }
 .agree-row { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 1.05rem; font-weight: 800; color: var(--bone); }
 .agree-row input { width: 22px; height: 22px; accent-color: var(--ok); cursor: pointer; flex: none; }
-.agree-state { font-size: 0.8rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 2px;
+.agree-t { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.agree-state { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 0.78rem; font-weight: 700; line-height: 1; border-radius: 999px;
   color: var(--ground); background: var(--dust); }
 .consent.on .agree-state { background: var(--ok); }
 .agree-why { margin: 0; font-size: 0.82rem; color: var(--dust); line-height: 1.55; max-width: 80ch; }
@@ -291,6 +292,19 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
 .subs { display: grid; gap: 4px; border-top: 1px solid var(--seam); padding-top: 10px; }
 .sub .gap { margin-left: 0; }
 details.raw { margin-top: 4px; }
+/* 둥근 모서리 (사용자 2026-11-08 "버튼들을 좀 둥그스럼하게") */
+button { border-radius: 10px; padding: 6px 14px; transition: background-color .15s, border-color .15s, color .15s; }
+button.go { border-radius: 12px; padding: 8px 24px; }
+.tools button, .intake-bar button, .up-act button { border-radius: 999px; }
+.thumb button { border-radius: 8px; padding: 2px 9px; }
+.tile { border-radius: 8px; }
+.ico { border-radius: 8px; }
+.slot { border-radius: 8px; }
+.upload, .consent, .intake-bar, .panel, .runcard { border-radius: 14px; }
+.thumb, .thumbs .place, .field, textarea, details.raw pre, .pop { border-radius: 10px; }
+.thumb .img { border-radius: 10px 10px 0 0; }
+.foe { border-radius: 8px; }
+.agree-row input { border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
