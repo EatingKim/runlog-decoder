@@ -1876,7 +1876,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     if (k === 'minion') { const m = lastEnd && lastEnd.state.minions[v]; return m ? ['minion', m.t] : null; }
     return ENCY_T.includes(k) && N[k] && N[k][v] ? [k, v] : null;
   }
-  const ency = { cat: 'module', q: '', g: -1, r: '' }; //r: 아래 줄 탭 (적 = 종류 번호 0 일반 1 엘리트 2 보스 3 특수, 모듈 = 키워드 이름). '' = 전체
+  const ency = { cat: 'module', q: '', g: new Set(), r: new Set() }; //g·r: 고른 탭들 (여러 개 고를 수 있음, 비면 전체) (사용자 2026-11-08 "중복 선택") //r: 아래 줄 탭 (적 = 종류 번호 0 일반 1 엘리트 2 보스 3 특수, 모듈 = 키워드 이름). '' = 전체
   let decScroll = 0;
   const norm = x => String(x).toLowerCase().replace(/\s+/g, '');
   /* 적·용어 (사용자 2026-11-08 "적 유닛이랑 키워드 설명도 추가해"): 게임 백과사전(Encyclopedia.eps)과 같은 종류·순서·막, 용어 글은 Keyword.eps */
@@ -1916,8 +1916,8 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   function encyText(k, v) { return norm(eName(k, v) + ' ' + eDesc(k, v) + ' ' + (k === 'module' ? MM(v)[0] : '') + (k === 'enemy' ? ' ' + ROLE_TXT[EN[v].grade] : '')); }
   function encyIds(k, useGroup) {
     const q = norm(ency.q);
-    return eList(k).filter(v => (!q || encyText(k, v).includes(q)) && (!useGroup || ency.g < 0 || eGroup(k, v) === ency.g) &&
-      (!useGroup || ency.r === '' || !subOf(k) || subOf(k)(v).includes(ency.r)));
+    return eList(k).filter(v => (!q || encyText(k, v).includes(q)) && (!useGroup || !ency.g.size || ency.g.has(eGroup(k, v))) &&
+      (!useGroup || !ency.r.size || !subOf(k) || subOf(k)(v).some(x => ency.r.has(x))));
   }
   /* 설명 꾸미기: "타격 2:" 같은 발동 조건은 키워드 색 딱지, 상태이상·용어 이름은 점선 밑줄(올리면 설명, 누르면 용어 카드),
    * 숫자는 굵게, 강화 괄호 "(+2)"는 흐리게 */
@@ -1975,13 +1975,13 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const k = ency.cat;
     $('ency-cats').innerHTML = ENCY_CATS.map(([c, t]) => '<button type="button" role="tab" data-cat="' + c + '" aria-selected="' + (c === k) + '" class="' + (c === k ? 'on' : '') + '">' + t + '<b>' + encyIds(c, false).length + '</b></button>').join('');
     const gs = k === 'curse' ? [] : [...new Set(eList(k).map(v => eGroup(k, v)))].sort((a, b) => a - b);
-    if (!gs.includes(ency.g)) ency.g = -1;
-    $('ency-grades').innerHTML = gs.length > 1 ? ['<button type="button" data-g="-1" class="' + (ency.g < 0 ? 'on' : '') + '">전체</button>'].concat(gs.map(g => '<button type="button" data-g="' + g + '" class="' + groupCls(k, g) + ' tint' + (ency.g === g ? ' on' : '') + '">' + groupLabel(k, g) + '</button>')).join('') : '';
+    [...ency.g].forEach(g => { if (!gs.includes(g)) ency.g.delete(g); });
+    $('ency-grades').innerHTML = gs.length > 1 ? ['<button type="button" data-g="-1" class="' + (!ency.g.size ? 'on' : '') + '">전체</button>'].concat(gs.map(g => '<button type="button" data-g="' + g + '" class="' + groupCls(k, g) + ' tint' + (ency.g.has(g) ? ' on' : '') + '">' + groupLabel(k, g) + '</button>')).join('') : '';
     const subs = subTabs(k);
-    if (!subs.some(x => x[0] === ency.r)) ency.r = '';
+    [...ency.r].forEach(x => { if (!subs.some(t => t[0] === x)) ency.r.delete(x); });
     $('ency-roles').hidden = !subs.length;
-    $('ency-roles').innerHTML = subs.length ? ['<button type="button" data-r="" class="' + (ency.r === '' ? 'on' : '') + '">전체</button>'].concat(subs.map(([val, label, cls]) =>
-      '<button type="button" data-r="' + esc(val) + '" class="' + cls + ' tint' + (ency.r === val ? ' on' : '') + '">' + esc(label) + '<b class="num">' + eList(k).filter(v => subOf(k)(v).includes(val)).length + '</b></button>')).join('') : '';
+    $('ency-roles').innerHTML = subs.length ? ['<button type="button" data-r="" class="' + (!ency.r.size ? 'on' : '') + '">전체</button>'].concat(subs.map(([val, label, cls]) =>
+      '<button type="button" data-r="' + esc(val) + '" class="' + cls + ' tint' + (ency.r.has(val) ? ' on' : '') + '">' + esc(label) + '<b class="num">' + eList(k).filter(v => subOf(k)(v).includes(val)).length + '</b></button>')).join('') : '';
     const ids = encyIds(k, true);
     /* 묶음별로: 등급은 하급 → 중급 → 상급 → 하자 (사용자 2026-11-08), 적은 막 순, 용어는 키워드 → 상태이상 → 용어 */
     const groups = {};
@@ -2003,7 +2003,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     setView('ency');
     if (m[1] && ENCY_CATS.some(c => c[0] === m[1])) ency.cat = m[1];
     const id = m[2] !== undefined ? +m[2] : null;
-    if (id !== null && !encyIds(ency.cat, true).includes(id)) { ency.q = ''; ency.g = -1; ency.r = ''; $('ency-q').value = ''; }
+    if (id !== null && !encyIds(ency.cat, true).includes(id)) { ency.q = ''; ency.g.clear(); ency.r.clear(); $('ency-q').value = ''; }
     encyRender();
     const card = id !== null && $('e-' + ency.cat + '-' + id);
     if (card) { card.scrollIntoView({ block: 'center' }); card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
@@ -2023,10 +2023,17 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const [k, v] = a.dataset.ency.split('/');
     goEncy(k, +v);
   }, true);
-  $('ency-cats').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.cat = b.dataset.cat; ency.g = -1; ency.r = ''; history.replaceState(null, '', '#ency/' + ency.cat); encyRender(); });
-  $('ency-grades').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.g = +b.dataset.g; encyRender(); });
-  $('ency-roles').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.r = b.dataset.r; encyRender(); });
-  $('ency-grid').addEventListener('click', e => { const b = e.target.closest('[data-kwsearch]'); if (!b) return; ency.q = ''; $('ency-q').value = ''; ency.g = -1; ency.r = b.dataset.kwsearch; goEncy('module'); /* 모듈 키워드 탭으로 */ });
+  $('ency-cats').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; ency.cat = b.dataset.cat; ency.g.clear(); ency.r.clear(); history.replaceState(null, '', '#ency/' + ency.cat); encyRender(); });
+  /* 탭 여러 개 고르기: 누르면 더하고, 고른 것을 다시 누르면 뺌. 전체 = 모두 (비움). 다 고르면 전체로 */
+  function toggleTab(set, val, all, n) {
+    if (all) set.clear();
+    else if (set.has(val)) set.delete(val);
+    else { set.add(val); if (set.size >= n) set.clear(); }
+    encyRender();
+  }
+  $('ency-grades').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; toggleTab(ency.g, +b.dataset.g, b.dataset.g === '-1', $('ency-grades').querySelectorAll('button').length - 1); });
+  $('ency-roles').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; toggleTab(ency.r, b.dataset.r, b.dataset.r === '', $('ency-roles').querySelectorAll('button').length - 1); });
+  $('ency-grid').addEventListener('click', e => { const b = e.target.closest('[data-kwsearch]'); if (!b) return; ency.q = ''; $('ency-q').value = ''; ency.g.clear(); ency.r = new Set([b.dataset.kwsearch]); goEncy('module'); /* 모듈 키워드 탭으로 */ });
   $('ency-q').addEventListener('input', () => { ency.q = $('ency-q').value; encyRender(); });
 
   function renderCheck(lines) {
