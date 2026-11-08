@@ -1289,6 +1289,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const battles = ev.filter(e => e.type === 'battle');
     const st = end && end.state;
     const hist = moduleHistory(ev);
+    const winLose = !end ? '(끊김)' : end.ending >= 1 ? '승리' : '패배'; //일반·진 엔딩 = 승리
     const run = [
       ['런 번호', id + ' (버전-시드-그 시드의 저장 횟수. 횟수는 저장할 때 시트가 정함, 지금은 예시)'], ['저장 시각', '(저장할 때 시각)'], ['기록 지문', finger + ' (같은 기록 두 번 저장 막기)'], ['닉네임', '(받기로 하면)'],
       ['기록코드 버전', 'V' + head.ver], ['시드', head.seed], ['난이도', D.DIFF[head.diff] || head.diff],
@@ -1318,7 +1319,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const pickRows = picks.map(o => {
       const t = o.kind ? 'minion' : 'module';
       const c = [0, 1, 2, 3].map(i => o.ids[i] !== undefined ? txtN(t, o.ids[i]) : '');
-      return [id, o.act, o.floor, segOf(o.act, o.floor), o.kind ? '하수인' : '모듈', c[0], c[1], c[2], c[3], o.pick !== null && o.ids[o.pick] !== undefined ? txtN(t, o.ids[o.pick]) : '(안 고름)'];
+      return [id, winLose, o.act, o.floor, segOf(o.act, o.floor), o.kind ? '하수인' : '모듈', c[0], c[1], c[2], c[3], o.pick !== null && o.ids[o.pick] !== undefined ? txtN(t, o.ids[o.pick]) : '(안 고름)'];
     });
     /* 층: 방마다 한 줄 */
     const floorRows = [];
@@ -1333,11 +1334,34 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const GN = ['하급', '중급', '상급', '하자'];
     const modRows = st ? deckModules(st, hist).map(d => {
       const meta = MM(d.x.id), after = d.g ? hist.wins - d.g.wins : '';
-      return [id, txtN('minion', d.m.t), d.k + 1, txtN('module', d.x.id), GN[Math.min(3, (N.grade.module || [])[d.x.id] || 0)], meta[0],
+      return [id, winLose, txtN('minion', d.m.t), d.k + 1, txtN('module', d.x.id), GN[Math.min(3, (N.grade.module || [])[d.x.id] || 0)], meta[0],
         d.g ? d.g.act + '막 ' + d.g.floor + '층' : '', d.g ? d.g.seg : '', d.g ? d.g.how : '기록 없음', after,
         meta[1] && d.g ? Math.floor(after / meta[1]) : '', meta[2] || d.x.growth ? d.x.growth : '', d.x.fuse ? txtN('module', d.x.fuse) : ''];
     }) : [];
-    return { run, pickRows, floorRows, modRows };
+    /* 모듈 통계 (시트에서는 모든 런을 모아 자동 계산. 여기서는 이 판 하나가 더해지는 몫) */
+    const stat = {};
+    const S0 = id => (stat[id] = stat[id] || { appear: 0, pick: 0, seg: {}, runPicked: false });
+    for (const o of picks) {
+      if (o.kind !== 0) continue;
+      const sg = segOf(o.act, o.floor);
+      o.ids.forEach((v, i) => {
+        if (!v) return;
+        const q = S0(v);
+        q.appear++;
+        const z = (q.seg[sg] = q.seg[sg] || { a: 0, p: 0 });
+        z.a++;
+        if (i === o.pick) { q.pick++; z.p++; q.runPicked = true; }
+      });
+    }
+    const pct = (p, a) => a ? Math.round(p / a * 100) + '%' : '';
+    const GN2 = ['하급', '중급', '상급', '하자'];
+    const statRows = Object.keys(stat).map(Number).sort((p, q) => stat[q].pick - stat[p].pick || stat[q].appear - stat[p].appear).map(v => {
+      const q = stat[v], lo = q.seg['최저층'] || { a: 0, p: 0 }, lw = q.seg['저층'] || { a: 0, p: 0 };
+      const w = q.runPicked && winLose === '승리' ? 1 : 0, l = q.runPicked && winLose === '패배' ? 1 : 0;
+      return [txtN('module', v), GN2[Math.min(3, (N.grade.module || [])[v] || 0)], MM(v)[0], 1, q.appear, q.pick, pct(q.pick, q.appear),
+        lo.a ? lo.p + '/' + lo.a + ' ' + pct(lo.p, lo.a) : '', lw.a ? lw.p + '/' + lw.a + ' ' + pct(lw.p, lw.a) : '', w, l, w + l ? pct(w, w + l) : ''];
+    });
+    return { run, pickRows, floorRows, modRows, statRows };
   }
   function table(head, rows) {
     return '<div class="tbl-wrap"><table class="sh"><thead><tr>' + head.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' +
@@ -1350,9 +1374,12 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       '<section class="blk"><div class="blk-h"><h2>런 탭</h2><span class="sum">한 판에 한 줄. 아래는 그 한 줄을 세로로 펼친 것</span></div>' +
       table(['칸', '값'], S.run) + '</section>' +
       '<section class="blk"><div class="blk-h"><h2>선택 탭</h2><span class="sum">보상 화면 한 번에 한 줄 · ' + S.pickRows.length + '줄 · 런 번호로 런 탭과 이어짐</span></div>' +
-      table(['런 번호', '막', '층', '구간', '종류', '후보 1', '후보 2', '후보 3', '후보 4', '고른 것'], S.pickRows) + '</section>' +
+      table(['런 번호', '결과', '막', '층', '구간', '종류', '후보 1', '후보 2', '후보 3', '후보 4', '고른 것'], S.pickRows) + '</section>' +
       '<section class="blk"><div class="blk-h"><h2>모듈 탭</h2><span class="sum">최종 덱의 모듈 하나에 한 줄 · ' + S.modRows.length + '줄 · 승전 발동 = 얻은 뒤 승리 수 ÷ 승전 N</span></div>' +
-      table(['런 번호', '하수인', '칸', '모듈', '등급', '키워드', '얻은 곳', '구간', '얻은 방법', '그 뒤 승리', '승전 발동', '성장치', '합성'], S.modRows) + '</section>' +
+      table(['런 번호', '결과', '하수인', '칸', '모듈', '등급', '키워드', '얻은 곳', '구간', '얻은 방법', '그 뒤 승리', '승전 발동', '성장치', '합성'], S.modRows) + '</section>' +
+      '<section class="blk"><div class="blk-h"><h2>모듈 통계 탭</h2><span class="sum">시트가 모든 런을 모아 자동 계산 · 아래는 이 판 하나가 더해지는 몫</span></div>' +
+      '<p class="hint">등장 = 보상 후보로 나온 횟수 · 픽률 = 고름 ÷ 등장 · 승률 = 그 모듈을 고른 런 중 승리(일반·진 엔딩) 비율, 한 런에 여러 번 골라도 한 번으로 셈</p>' +
+      table(['모듈', '등급', '키워드', '등장한 런', '등장', '고름', '픽률', '최저층 고름/등장', '저층 고름/등장', '고른 런 승', '고른 런 패', '승률'], S.statRows) + '</section>' +
       '<section class="blk"><div class="blk-h"><h2>층 탭</h2><span class="sum">한 층에 한 줄 · ' + S.floorRows.length + '줄' + (res.ev.find(e => e.type === 'head').ver < 7 ? ' · 체력·골드는 V7 기록부터' : '') + '</span></div>' +
       table(['런 번호', '막', '층', '방', '들어갈 때 체력', '들어갈 때 골드', '전투 상대', '잃은 체력', '전투 시간(초)'], S.floorRows) + '</section>';
   }
