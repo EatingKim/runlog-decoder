@@ -584,6 +584,21 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
   function repairLine(line, isLast) {
     const d = line.data, k = line.chk;
     const res = { n: line.n, raw: line.raw, text: d, status: 'ok', note: '', alts: [] };
+    /* 글자 하나가 빠졌거나 하나 더 들어간 줄 (2026-11-08 사용자: "KKT4"에서 붙어 있는 글자를 놓침): 확인 글자가 맞는 넣기·빼기 후보를 모두 만들고
+     * 해독으로 고름 (pickByDecode). 후보가 하나면 바로 고침 */
+    if (!isLast && Math.abs(d.length - LINE_SYMS) === 1 && [...d].every(c => c in VAL) && k in VAL) {
+      const cands = [], seen = new Set();
+      const add = (t, note) => { if (seen.has(t)) return; seen.add(t); if (check(Array.from(t, c => VAL[c])) === VAL[k]) cands.push({ text: t, note }); };
+      if (d.length < LINE_SYMS) { for (let i = 0; i <= d.length; i++) for (const c of ALPHA) add(d.slice(0, i) + c + d.slice(i), (i + 1) + '번째에 빠진 글자 ' + c + ' 넣음'); }
+      else for (let i = 0; i < d.length; i++) add(d.slice(0, i) + d.slice(i + 1), (i + 1) + '번째 글자 ' + d[i] + ' 뺌');
+      if (cands.length) {
+        res.text = cands[0].text;
+        res.status = cands.length === 1 ? 'fixed' : 'guess';
+        res.note = cands.length === 1 ? cands[0].note : '글자 ' + d.length + '개(72개여야 함). 넣거나 뺄 후보 ' + cands.length + '개 중 해독이 맞는 것으로';
+        res.alts = cands.length > 1 ? cands : [];
+        return res;
+      }
+    }
     if (!isLast && d.length !== LINE_SYMS) {
       res.status = 'bad';
       res.note = d.length < LINE_SYMS * 0.9
@@ -1338,10 +1353,26 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
    * 줄마다 따로 부를 수 있게 (화면이 멈추지 않도록) 줄 목록과 한 줄 읽기를 나눠 둠 */
   const MAX_COST = 15;
   function prepareImage(img) { const im = toGray(img); return { im, lines: findLines(im) }; }
+  /* 글자 하나를 놓친 줄 (71글자): 붙어 있는 두 글자(KT 등)를 한 글자로 읽으면 그 자리의 글자 간격이 두 배쯤 벌어짐 (2026-11-08 "KKT4").
+   * 간격이 유난히 넓은 곳이 하나뿐이면 거기에 '?'를 넣어 해독기가 확인 글자로 채우게 함. 여럿이면 그대로 두고 해독기의 넣기 후보 고르기에 맡김 */
+  function gapFill(r, f) {
+    const parts = f.text.split(' ');
+    if (parts.length !== 2 || parts[1].length !== 1 || parts[0].length !== 71) return null;
+    const s = r.seq.slice(0, -1);
+    if (s.length !== 71) return null;
+    const c = s.map(q => (q.x0 + q.x1) / 2), d = c.slice(1).map((v, i) => v - c[i]);
+    const med = d.slice().sort((a, b) => a - b)[d.length >> 1];
+    const big = d.map((v, i) => ({ v, i })).filter(x => x.v > med * 1.7).sort((a, b) => b.v - a.v);
+    if (big.length !== 1) return null;
+    const at = big[0].i + 1;
+    return { text: parts[0].slice(0, at) + '?' + parts[0].slice(at) + ' ' + parts[1], fixed: 1, weak: f.weak };
+  }
   function readOne(im, line, T) {
     const r = readGrid(bandGrid(im, line, T.H), T);
     if (r.cost > MAX_COST || r.text.replace(/ /g, '').length < 2) return null;
-    const f = fixLine(r);
+    let f = fixLine(r);
+    const gap = gapFill(r, f);
+    if (gap) f = gap;
     const parts = f.text.split(' ');
     let sure = false;
     if (parts.length === 2 && parts[1].length === 1 && f.fixed >= 0 && !f.weak.length) {
