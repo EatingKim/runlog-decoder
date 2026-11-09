@@ -2380,7 +2380,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     el.hidden = !list.length;
     if (!list.length) { el.innerHTML = ''; return; }
     const day = t => { const d = new Date(t); return (d.getMonth() + 1) + '/' + d.getDate(); };
-    el.innerHTML = '<p class="label">최근 기록 <span class="dim">· 이 브라우저에만 남습니다</span></p><div class="rec-list">' + list.map(x =>
+    el.innerHTML = '<p class="label">최근 기록</p><div class="rec-list">' + list.map(x =>
       '<div class="rec' + (x.fp === cur ? ' on' : '') + (x.win === true ? ' win' : x.win === false ? ' lose' : '') + '"><button type="button" class="rec-open" data-fp="' + esc(x.fp) + '">' +
       '<b>' + esc(x.res) + '</b><span>' + esc(x.where) + '</span><span class="num">시드 ' + x.seed + '</span><span class="dim">' + (D.DIFF[x.diff] || '') + ' · V' + x.ver + ' · ' + day(x.t) + '</span></button>' +
       '<button type="button" class="rec-del" data-del="' + esc(x.fp) + '" aria-label="목록에서 지우기">×</button></div>').join('') + '</div>';
