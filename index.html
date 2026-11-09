@@ -88,8 +88,9 @@ textarea { width: 100%; box-sizing: border-box; min-height: calc(1.6em * 3 + 22p
 .up-head input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .pick-btn:focus-within { outline: 2px solid var(--void); outline-offset: 2px; }
 .up-act { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-button.go { background: var(--void); border-color: var(--void); color: var(--ground); font-weight: 800; padding: 7px 22px; font-size: 0.95rem; }
-button.go:hover { filter: brightness(1.1); color: var(--ground); background: var(--void); }
+/* 변환: 사진 가져오기와 같은 모양 (사용자 2026-11-08) */
+button.go { background: transparent; border-color: var(--void); color: var(--void); font-weight: 400; padding: 6px 14px; font-size: 0.85rem; }
+button.go:hover { background: var(--void); color: var(--ground); }
 button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .thumbs .place { grid-column: 1 / -1; border: 1px dashed var(--seam); min-height: 120px; display: flex; align-items: center; justify-content: center; color: var(--dust); font-size: 0.9rem; text-align: center; padding: 12px; }
@@ -309,7 +310,7 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
 details.raw { margin-top: 4px; }
 /* 둥근 모서리 (사용자 2026-11-08 "버튼들을 좀 둥그스럼하게") */
 button { border-radius: 10px; padding: 6px 14px; transition: background-color .15s, border-color .15s, color .15s; }
-button.go { border-radius: 12px; padding: 8px 24px; }
+button.go { border-radius: 999px; padding: 6px 14px; }
 .tools button, .intake-bar button, .up-act button { border-radius: 999px; }
 .thumb button { border-radius: 8px; padding: 2px 9px; }
 .tile { border-radius: 8px; }
