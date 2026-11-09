@@ -2432,13 +2432,26 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   }
   const tick = () => new Promise(r => setTimeout(r, 0));
   /* 사진마다 읽은 줄을 따로 모아, 짧은 줄(기록의 끝)로 끝나는 사진이 맨 뒤에 오도록 쪽 순서를 바로잡음. 옮긴 사진 번호를 돌려줌 */
-  function fixOrder(pages) {
-    const isEnd = p => p.lines.length && p.lines[p.lines.length - 1].text.split(' ')[0].length < OCR_LINE * 0.9;
-    const ends = pages.map((p, i) => isEnd(p) ? i : -1).filter(i => i >= 0);
-    if (ends.length !== 1 || ends[0] === pages.length - 1) return -1;
-    const k = ends[0];
-    pages.push(pages.splice(k, 1)[0]);
-    return k;
+  /* 사진 순서 맞추기 (사용자 2026-11-08 "순서 상관없이 놔도 순서대로 읽는 방법"):
+   * 앞에서부터 한 쪽씩: 남은 쪽을 하나씩 뒤에 붙여 해독해 보고(줄 고치기까지 포함), 이상한 기록이 가장 늦게 나오는 쪽을 고름.
+   * 잘못 붙이면 이은 자리에서 바로 이상해지고, 맞게 붙이면 그 쪽 끝까지 읽힘. 결과 기록은 마지막 쪽에서만 나와야 함 */
+  function orderPages(pages) {
+    const n = pages.length;
+    if (n < 2) return null;
+    const txt = order => order.map(i => pages[i].lines.map(r => r.text).join('\n')).join('\n');
+    const score = order => {
+      const r = D.decodeText(txt(order), N), o = r.log, bits = r.lines.length * D.LINE_SYMS * 5;
+      if (!o || o.problemAt === undefined) return -1;
+      if (o.problemAt === Infinity) return bits + (o.ended ? (order.length === n ? 1e6 : -1e6) : 0);
+      return o.problemAt;
+    };
+    const order = [], left = pages.map((_, i) => i);
+    while (left.length) {
+      let bi = 0, bs = -Infinity;
+      left.forEach((i, k) => { const sc = score(order.concat(i)); if (sc > bs) { bs = sc; bi = k; } });
+      order.push(left.splice(bi, 1)[0]);
+    }
+    return order.every((v, i) => v === i) ? null : order;
   }
   const OCR_LINE = 72;
   async function readFiles(files) {
@@ -2466,17 +2479,20 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
         }
         pages.push(page);
       }
-      moved = fixOrder(pages);
-      if (moved >= 0) { //미리보기 순서도 같이
-        const q = queue.splice(moved, 1)[0];
-        if (q) queue.push(q);
+      if (pages.length > 1) { ocrSt.textContent = '쪽 순서 맞추는 중'; await tick(); }
+      const order = orderPages(pages);
+      if (order) { //사진 순서를 기록 내용대로 바꿈. 미리보기 순서도 같이
+        const ps = order.map(i => pages[i]), qs = order.map(i => queue[i]).filter(Boolean);
+        pages.splice(0, pages.length, ...ps);
+        if (qs.length === queue.length) queue.splice(0, queue.length, ...qs);
+        moved = order;
       }
       for (const pg of pages) for (const r of pg.lines) texts.push(r.text);
       if (!texts.length) {
         ocrSt.textContent = '코드 줄을 찾지 못했습니다. 기록 보기 화면의 PC 스크린샷인지 확인하세요.';
       } else {
         ocrSt.textContent = texts.length + '줄 읽음' +
-          (moved >= 0 ? ' · ' + (moved + 1) + '쪽으로 올린 사진이 기록의 마지막 쪽이라 맨 뒤로 옮겼습니다' : '') +
+          (moved !== -1 ? ' · 사진 순서를 기록 내용에 맞춰 바꿨습니다 (올린 순서 ' + moved.map(i => i + 1).join('→') + ')' : '') +
           (bad ? ' · ' + bad + '줄은 확인 글자가 맞지 않습니다. 아래 코드 확인 결과를 보세요' : '');
         setText(texts.join('\n'));
       }
