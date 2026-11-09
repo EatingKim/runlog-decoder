@@ -213,7 +213,6 @@ table.sh td:first-child { white-space: nowrap; }
 .pr.ch { margin: 1px 0 3px 11px; padding-left: 8px; border-left: 1px dashed color-mix(in srgb, var(--cyan) 45%, transparent); font-size: 0.84rem; }
 .pr.ch .cn { color: var(--cyan); font-weight: 700; margin-right: 6px; }
 .pr.ch .cg { margin-top: 1px; color: var(--bone); font-size: 0.82rem; }
-.tile .bigdot { position: absolute; left: 3px; top: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
 .pr.stats { font-size: 0.78rem; color: var(--dust); }
 .items { display: grid; gap: 2px; min-width: 0; font-size: 0.88rem; }
 .it { overflow-wrap: anywhere; }
@@ -1550,7 +1549,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
           const nm0 = r ? (D.ROOM[t] || '방') : '기록';
           const hurt = f.items.filter(x => x.type === 'battle').reduce((u, x) => u + x.lost, 0);
           h += '<button type="button" class="tile r' + t + '" data-pop="floor" data-a="' + ai + '" data-f="' + fi + '" aria-label="' + a.n + '막 ' + (r ? r.floor + '층 ' : '') + nm0 + '">' +
-            '<b>' + nm0[0] + '</b><small class="num">' + (r ? r.floor : '·') + '</small>' + (hurt ? '<i class="hp num">−' + hurt + '</i>' : '') + (bigFloor(f) ? '<i class="bigdot" title="큰 분기"></i>' : '') + '</button>';
+            '<b>' + nm0[0] + '</b><small class="num">' + (r ? r.floor : '·') + '</small>' + (hurt ? '<i class="hp num">−' + hurt + '</i>' : '') + '</button>';
         });
         h += '</div></div>';
       });
@@ -1916,8 +1915,6 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     return X.text[id * 4 + c] || '';
   }
   /* 큰 분기가 있던 층 (네모에 점 표시) */
-  /* 네모 점은 드문 분기만: 이벤트·유물·저주 (모듈 보상은 전투마다 있어 점이 거의 모든 네모에 붙으므로 뺌, 2026-11-08 실제 기록으로 확인) */
-  const bigFloor = f => f.items.some(e => e.type === 'event' || ((e.type === 'gain' || e.type === 'lose') && (e.kind === 1 || e.kind === 4)) || (e.type === 'shop' && e.cat === 1));
   function floorDetail(a, f) {
     const r = f.e;
     let h = '<div class="pop-h"><b class="r' + (r ? r.room : 1) + '">' + (r ? D.ROOM[r.room] : '기록') + '</b>' +
