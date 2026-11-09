@@ -709,7 +709,18 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
   const GAIN = ['골드', '유물', '하수인', '물약', '저주'];
   const ENDING = ['패배', '일반 엔딩', '진 엔딩', '?'];
   const UPG = ['하수인공', '모듈공', '소환공', '방어'];
-  const DIFF = ['쉬움', '보통', '어려움', '?']; //Player.DIFF_EASY 0 · DIFF_NORMAL 1 · DIFF_HARD 2
+  const DIFF = ['쉬움', '보통', '어려움', '?'];
+  const CLASS = ['전사', '술사', '환사', '?']; //ClassState.CLASS_* (판 8)
+  const DECODER_MAX = 8; //이 해독기가 읽을 줄 아는 마지막 판 (게임 이름표 판보다 앞서 준비해 둘 수 있음)
+  /* 판 8 전체 확인값 (12): 기록 글자들(끝의 확인값 2글자 앞까지, 남는 비트를 채운 글자 포함) v_i 에 대해 Σ v_i·(2i+1) mod 1024.
+   * 기록 맨 끝에 낮은 5비트, 높은 5비트 순서로 2글자. 판 7 이하는 없음 */
+  function totalSum(syms) { let s = 0; for (let i = 0; i < syms.length; i++) s = (s + syms[i] * (2 * i + 1)) % 1024; return s; }
+  /* 판 8이면 끝 2글자를 떼어 확인값을 검사. 돌려줌: {data, sum: null(판 7 이하) | true | false} */
+  function splitSum(syms) {
+    if (syms.length < 3 || (syms[0] & 15) < 8) return { data: syms, sum: null };
+    const data = syms.slice(0, -2), want = syms[syms.length - 2] + syms[syms.length - 1] * 32;
+    return { data, sum: totalSum(data) === want };
+  } //Player.DIFF_EASY 0 · DIFF_NORMAL 1 · DIFF_HARD 2
 
   function decodeSyms(syms, names) {
     names = names || {};
@@ -726,7 +737,7 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
     /* 이름표를 붙이는 판: V6부터 이름표 판까지. V6 → V7은 방·전투 기록 모양만 바뀌고 번호는 그대로라 V6 기록에도 이름을 붙임.
      * 다음에 번호를 다시 매기는 판이 나오면 NAMES_SINCE 를 그 판으로 올릴 것 */
     const NAMES_SINCE = 6;
-    const useNames = ver >= NAMES_SINCE && ver <= (names.version || 0);
+    const useNames = ver >= NAMES_SINCE && ver <= Math.max(names.version || 0, DECODER_MAX);
     let problemAt = Infinity, ended = false;
     const odd = (cond, at) => { if (cond && problemAt === Infinity) problemAt = at; };
     const has = (table, v) => !useNames || !names[table] || (v > 0 && v < names[table].length && names[table][v] !== '');
@@ -737,8 +748,11 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
     };
     const seed = r.bits(20);
     const diff = r.bits(2);
-    out.push('기록코드 버전: V' + ver + ' · 시드 ' + seed + ' · 난이도 ' + DIFF[diff]);
-    ev.push({ type: 'head', ver, seed, diff, named: useNames });
+    /* 판 8 (docs/런기록_변경_예정.md 9~11): 직업 2 · 인원 2 (1~4명 → 0~3) · 맵 판 번호 8 */
+    let cls = -1, players = 0, mapVer = -1;
+    if (ver >= 8) { cls = r.bits(2); players = r.bits(2) + 1; mapVer = r.bits(8); }
+    out.push('기록코드 버전: V' + ver + ' · 시드 ' + seed + ' · 난이도 ' + DIFF[diff] + (ver >= 8 ? ' · 직업 ' + CLASS[cls] + ' · ' + players + '인 · 맵 판 ' + mapVer : ''));
+    ev.push({ type: 'head', ver, seed, diff, cls, players, mapVer, named: useNames });
     if (!useNames && names.version) out.push('(이름표는 기록코드 버전 V' + NAMES_SINCE + '~V' + names.version + '용이라 번호만 적음)');
     if (ver < 2) out.push('(기록코드 버전 V1은 지원하지 않음)');
     let act = 1, floor = 0, lastVal = 0;
@@ -863,10 +877,11 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
           floor = 0;
         } else if (tag === 14) {
           const ending = r.bits(2), enc = r.bits(7), score = r.bits(13), kills = r.bits(10);
+          const mins = ver >= 8 ? r.bits(10) : -1; //판 8 (14): 런 전체 시간 (분, 1023 넘으면 1023)
           odd(ending > 2, at);
-          const endEv = { type: 'end', at, ending, enc, score, kills };
+          const endEv = { type: 'end', at, ending, enc, score, kills, mins };
           ev.push(endEv);
-          out.push(P + '##### 런 끝: ' + ENDING[ending] + ' 마지막 편성' + nm('encounter', enc) + ' 점수' + score + ' 처치' + kills);
+          out.push(P + '##### 런 끝: ' + ENDING[ending] + ' 마지막 편성' + nm('encounter', enc) + ' 점수' + score + ' 처치' + kills + (mins >= 0 ? ' 전체 ' + mins + '분' : ''));
           endEv.state = state('    ');
           const nr = r.bits(8), rel = [];
           odd(nr > 100, r.p); //쪽이 빠지면 끝 기록이 엉뚱한 자리에서 읽혀 유물 수가 터무니없어짐 (2026-11-08 시드 539704)
@@ -908,8 +923,10 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
   /* 후보가 여럿인 줄: 후보마다 뒤 줄까지 붙여 해독해 보고, 이상한 기록이 가장 늦게 나오는 후보를 고름 */
   function score(syms, names) {
     let o;
-    try { o = decodeSyms(syms, names); } catch (e) { return -1; }
-    return o.problemAt === Infinity ? syms.length * 5 + (o.ended ? 1 : 0) : o.problemAt;
+    const sp = splitSum(syms);
+    try { o = decodeSyms(sp.data, names); } catch (e) { return -1; }
+    const base = o.problemAt === Infinity ? syms.length * 5 + (o.ended ? 1 : 0) : o.problemAt;
+    return sp.sum === true ? base + 1e6 : base; //판 8: 전체 확인값이 맞는 후보가 가장 앞
   }
   function pickByDecode(fixed, names) {
     const symsOf = t => Array.from(t, c => (c in VAL ? VAL[c] : 0));
@@ -939,7 +956,7 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
     const symsOf = t => Array.from(t, c => (c in VAL ? VAL[c] : 0));
     const all = () => [].concat(...fixed.map(x => symsOf(x.text)));
     let o;
-    try { o = decodeSyms(all(), names); } catch (e) { return; }
+    try { o = decodeSyms(splitSum(all()).data, names); } catch (e) { return; }
     if (o.problemAt === Infinity || fixed.some(f => f.status === 'bad')) return;
     const li0 = Math.floor(o.problemAt / 5 / LINE_SYMS);
     const base = score(all(), names);
@@ -979,17 +996,19 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
       for (const c of f.text) syms.push(VAL[c]);
     }
     let log = [];
-    if (syms.length) log = decodeSyms(syms, names);
+    const sp = stopAt < 0 ? splitSum(syms) : { data: syms, sum: null };
+    if (syms.length) log = decodeSyms(sp.data, names);
     if (stopAt > 0) { if (log.ev) log.ev.push({ type: 'stop', line: stopAt }); log.push('(' + stopAt + '번째 줄을 고치지 못해 그 앞까지만 해독함)'); }
     /* 이상한 기록이 처음 나온 줄 (쪽이 빠졌거나 순서가 바뀌었거나, 확인 글자로 못 잡은 인식 오류) */
     const problemLine = log.problemAt !== undefined && log.problemAt !== Infinity ? Math.floor(log.problemAt / 5 / LINE_SYMS) + 1 : 0;
     /* 게임은 런이 끝났을 때만 코드를 보여 주므로 끝 기록(결과)이 없으면 쪽이 빠졌거나 잘린 것 (2026-11-08 시드 539704: 5쪽이 빠져 4쪽 뒤에 6쪽이 붙음).
      * 런마다 글자 상한(RunLog.SYM_CAP 4000자 = 약 55줄)에 닿아 잘린 기록은 예외 */
     const noEnd = syms.length > 0 && stopAt < 0 && !log.ended && syms.length < 3900;
-    return { lines: fixed, log: log, ev: log.ev || [], stopAt: stopAt, problemLine, noEnd, ok: stopAt < 0 && !problemLine && !noEnd && fixed.every(f => f.status !== 'guess') };
+    if (sp.sum === false) log.push('(전체 확인값이 맞지 않음: 어딘가 잘못 읽은 글자가 있음)');
+    return { lines: fixed, log: log, ev: log.ev || [], stopAt: stopAt, problemLine, noEnd, sumOk: sp.sum, ok: stopAt < 0 && !problemLine && !noEnd && sp.sum !== false && fixed.every(f => f.status !== 'guess') };
   }
 
-  const api = { DIFF, ROOM, CAMP, SHOP, GAIN, ENDING, UPG, ALPHA, LINE_SYMS, check, splitLines, repairLine, decodeSyms, decodeText };
+  const api = { DIFF, CLASS, totalSum, splitSum, ROOM, CAMP, SHOP, GAIN, ENDING, UPG, ALPHA, LINE_SYMS, check, splitLines, repairLine, decodeSyms, decodeText };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RunLogDecode = api;
 
@@ -1441,6 +1460,9 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   const TBL = ['', 'relic', 'minion', 'potion', 'curse'];
   /* 덱 영구 강화 (사용자 2026-11-08): 모듈 공격력은 전사에게는 투사체 공격력. 지금 고를 수 있는 직업은 전사뿐이라 투사체로 적음 */
   const UPG_TXT = ['하수인 공격력', '투사체 공격력', '소환 공격력', '방어력'];
+  /* 판 8부터 기록에 직업이 있음: 전사(0)는 투사체, 다른 직업은 모듈 공격력. 판 7 이하는 전사로 봄 */
+  let runVer = 7, runCls = -1;
+  const upgTxt = i => i === 1 && runCls > 0 ? '모듈 공격력' : UPG_TXT[i];
   /* 유물 등급·직업 (build.py relic_info = Relic.eps Relic_Grade·ClassTable, 사용자 2026-11-08 "공용인지 특정 직업 유물인지 표기") */
   const RELIC_GN = ['하급', '중급', '상급', '이벤트', '대기', '시작'];
   const CLASS_TXT = ['공용', '전사', '술사', '환사'], CLASS_CLS = ['c0', 'c1', 'c2', 'c3'];
@@ -1585,7 +1607,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       ml.forEach(id => { mc[Math.min(3, mg(id))] += mods[id]; });
       const MG = ['하급', '중급', '상급', '하자'];
       const deckH = '<section class="panel"><div class="blk-h"><h2>덱</h2><span class="sum upg">' +
-        UPG_TXT.map((u, i) => u + ' <b class="num">' + st.up[i] + '</b>').join(' / ') + '</span></div>' +
+        UPG_TXT.map((u, i) => upgTxt(i) + ' <b class="num">' + st.up[i] + '</b>').join(' / ') + '</span></div>' +
         '<h3>하수인 <span class="cnt num">' + st.minions.length + '</span></h3>' + deckField(st, lastSlots) +
         '<h3>모듈 <span class="cnt num">' + total + '</span> <span class="sum">' + [2, 1, 0, 3].filter(g => mc[g]).map(g => '<span class="n' + g + '">' + MG[g] + ' ' + mc[g] + '</span>').join(' · ') + '</span></h3>' +
         '<div class="chips">' + ml.map(id => '<button type="button" class="chip g' + Math.min(3, mg(id)) + '" data-pop="module" data-v="' + id + '">' + esc(txtN('module', id)) + (mods[id] > 1 ? ' <b class="num">×' + mods[id] + '</b>' : '') + '</button>').join('') + '</div></section>';
@@ -1730,6 +1752,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const run = [
       ['런 번호', id], ['저장 시각', ''], ['기록 지문', finger], ['닉네임', ''],
       ['기록코드 버전', 'V' + head.ver], ['시드', head.seed], ['난이도', D.DIFF[head.diff] || head.diff],
+      ['직업', head.ver >= 8 ? D.CLASS[head.cls] : ''], ['인원', head.ver >= 8 ? head.players : ''], ['맵 판', head.ver >= 8 ? head.mapVer : ''], ['플레이 시간(분)', end && end.mins >= 0 ? end.mins : ''],
       ['결과', end ? RESULT[end.ending] : '(기록이 끊김)'], ['도달', last ? last.act + '막 ' + last.floor + '층' : ''],
       ['마지막 전투', end ? txtN('encounter', end.enc) : ''], ['점수', end ? end.score : ''], ['처치', end ? end.kills : ''],
       ['전투 수', battles.length], ['잃은 체력 합', battles.reduce((a, b) => a + b.lost, 0)],
@@ -1847,6 +1870,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   async function maybeSave(res) {
     if (!CAN_SAVE || !$('agree').checked) { saveSay(''); return; }
     const bad = res.lines.filter(l => l.status !== 'ok' && l.status !== 'fixed').length;
+    if (res.sumOk === false) { saveSay('전체 확인값이 맞지 않아 저장하지 않았습니다.', 'warn'); return; }
     if (res.noEnd) { saveSay('기록 끝(런 결과)이 없어 저장하지 않았습니다. 빠진 쪽이 없는지 확인하세요.', 'warn'); return; }
     if (res.problemLine) { saveSay('기록 내용이 중간부터 이상해 저장하지 않았습니다. 빠진 쪽이나 줄을 확인하세요.', 'warn'); return; }
     if (bad) { saveSay('확인이 필요한 줄이 ' + bad + '개 있어 저장하지 않았습니다. 줄을 고친 뒤 코드 확인을 누르면 저장됩니다.', 'warn'); return; }
@@ -1899,7 +1923,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   /* 인형사의 작업대 (3) 인형 고쳐 만들기: 하수인을 고르는데 게임이 '이벤트에서 고름'으로 그 하수인 첫 칸의 모듈 번호를 적음 (Event.PickDone_Apply).
    * 모듈을 얻은 게 아니므로 해독기에서 무시 (2026-11-08 실제 기록 시드 308108에서 확인, 게임 쪽 고칠 거리는 예정 문서) */
   const EV_DOLLMAKER = 22;
-  const fakePick = (ev, c) => ev === EV_DOLLMAKER && c === 3;
+  const fakePick = (ev, c) => runVer < 8 && ev === EV_DOLLMAKER && c === 3; //판 8에서 게임이 고침 (예정 문서 13)
   /* 이벤트 선택지 글 (Event.eps EvChoice). 같은 화면에서 다시 고를 때 바뀌는 글은 Event.Choice_Text처럼 앞선 선택으로 고름.
    * prev = 이 이벤트에서 앞서 고른 선택지(0~3). 유랑상인 꾸러미 종류는 기록에 없어 일반 글 */
   function choiceText(id, c, prev) {
@@ -2243,6 +2267,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   }
   /* 해독은 됐지만 중간부터 값이 이상할 때 (쪽 빠짐·순서 바뀜 등) */
   function warnProblem(res) {
+    if (res.sumOk === false) $('code-st').insertAdjacentHTML('beforeend', '<span class="bad">전체 확인값이 맞지 않습니다. 줄마다의 확인 글자로는 못 잡은 잘못 읽은 글자가 어딘가에 있습니다. 해독 내용 중 일부가 틀릴 수 있습니다.</span>');
     if (res.noEnd) $('code-st').insertAdjacentHTML('beforeend', '<span class="bad">기록 끝(런 결과)이 없습니다. 게임은 런이 끝나야 코드를 보여 주므로 <b>쪽이 빠졌거나 순서가 바뀌었을</b> 가능성이 큽니다. 사진이 ' + Math.ceil(res.lines.length / 10) + '쪽 분량(' + res.lines.length + '줄)인데, 게임 화면의 "런 기록 n/N" 쪽 수와 맞는지 확인하세요.</span>');
     if (!res.problemLine) return;
     const page = Math.ceil(res.problemLine / 10);
@@ -2408,6 +2433,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     lastLog = res.log.join('\n');
     const head = res.ev.find(e => e.type === 'head');
     named = !head || head.named;
+    runVer = head ? head.ver : 7; runCls = head && head.ver >= 8 ? head.cls : -1;
     const m = renderMap(res.ev);
     $('map').innerHTML = m.html;
     drawChart();
@@ -2426,11 +2452,13 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       '<div class="rc-seed"><small>시드</small><span class="num">' + head.seed + '</span></div></div>' +
       '<dl class="rc-stats">' +
       stat('난이도', D.DIFF[head.diff] || head.diff) +
+      (head.ver >= 8 ? stat('직업', D.CLASS[head.cls] || '?') + stat('인원', head.players + '인') : '') +
       (end ? stat('점수', end.score) + stat('처치', end.kills) : '') +
       stat('전투', battles.length + '번') +
       stat('잃은 체력', battles.reduce((a, b) => a + b.lost, 0), 'hurt') +
       (st ? stat('끝날 때 체력', st.hp + '/' + st.mhp) + stat('골드', st.gold, 'gold') : '') +
-      stat('기록코드', 'V' + head.ver) + '</dl>' +
+      (end && end.mins >= 0 ? stat('플레이 시간', end.mins + '분') : '') +
+      stat('기록코드', 'V' + head.ver + (head.ver >= 8 ? ' · 맵 ' + head.mapVer : '')) + '</dl>' +
       (named ? '' : '<p class="example">이 기록은 기록코드 버전 V' + head.ver + '이라 지금 이름표(V6~V' + N.version + ')와 번호가 달라 이름 없이 번호만 보여줍니다.</p>') + '</div>';
     intakeDone(res);
     remember(res, head, end, resTxt, lastRoom);
