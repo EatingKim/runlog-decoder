@@ -2383,7 +2383,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   $('recent').addEventListener('click', e => {
     const o = e.target.closest('[data-fp]'), d = e.target.closest('[data-del]');
     if (d) { store.set(RECENT_KEY, JSON.stringify(recentGet().filter(x => x.fp !== d.dataset.del))); drawRecent(); return; }
-    if (o) { const x = recentGet().find(r => r.fp === o.dataset.fp); if (x) { setText(codeFromShare(x.code)); scrollTo(0, 0); } }
+    if (o) { const x = recentGet().find(r => r.fp === o.dataset.fp); if (x) { setText(codeFromShare(x.code)); toResult(); } }
   });
 
   function render() {
@@ -2438,6 +2438,12 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     $('intake').classList.add('done');
   }
   function setText(t) { src.value = t; render(); }
+  /* 변환이 끝나면 결과 카드가 화면 맨 위에 오게 (사용자 2026-11-08 "딱 칸에 맞춰서 이 위치부터 보이게") */
+  function toResult() {
+    const h = $('hero');
+    if (!h || !h.firstChild) return;
+    requestAnimationFrame(() => scrollTo({ top: Math.max(0, h.getBoundingClientRect().top + scrollY - 8), behavior: 'smooth' }));
+  }
   $('btn-check').addEventListener('click', render);
   $('btn-intake').addEventListener('click', () => { const o = $('intake').classList.toggle('open'); $('btn-intake').textContent = o ? '접기' : '기록 다시 넣기'; });
   $('btn-clear').addEventListener('click', () => { setText(''); src.focus(); });
@@ -2532,6 +2538,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
           (moved !== -1 ? ' · 사진 순서를 기록 내용에 맞춰 바꿨습니다 (올린 순서 ' + moved.map(i => i + 1).join('→') + ')' : '') +
           (bad ? ' · ' + bad + '줄은 확인 글자가 맞지 않습니다. 아래 코드 확인 결과를 보세요' : '');
         setText(texts.join('\n'));
+        toResult();
       }
     } catch (e) {
       ocrSt.textContent = '사진을 읽지 못했습니다: ' + e.message;
