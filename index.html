@@ -1547,7 +1547,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
         });
         h += '</div></div>';
       });
-      h += '</div><p class="hint">네모에 마우스를 올리거나 누르면 그 층 내용이 나옵니다. 빨간 숫자는 그 층에서 잃은 체력, 청록 점은 이벤트·유물·저주가 있던 층입니다.</p></section>';
+      h += '</div></section>'; //안내 글 뺌 (사용자 2026-11-08)
       /* 체력·골드 그래프 (사용자 2026-11-08): 판 7부터 방마다 남는 체력·골드. 축이 다른 두 값이라 그래프를 둘로 나눔 */
       chartPts = [];
       acts.forEach((a, ai) => a.floors.forEach((f, fi) => { const r = f.e; if (r && r.cur) chartPts.push({ act: a.n, floor: r.floor, hp: r.cur.hp, max: r.cur.max, gold: r.cur.gold, ai, fi }); }));
