@@ -469,6 +469,11 @@ details.raw summary { font-size: 0.78rem; }
 .rec-open b { color: var(--c); font-size: 0.8rem; }
 .rec-del { border: 0; padding: 0 8px; color: var(--dust); font-size: 0.9rem; border-radius: 0 8px 8px 0; }
 .rec-del:hover { color: var(--bad); background: transparent; }
+/* 유물 그림은 네모 틀 없이 (사용자 2026-11-09 "외관 네모 빼봐"). 그림이 없는 유물은 틀을 남겨 등급 색을 보여 줌 */
+.ico.rl.pic, .ec .ico.rl.pic { border-color: transparent; background: transparent; }
+.ico.rl.pic img { width: 100%; height: 100%; }
+.ico.rl.pic:hover, .ico.rl.pic.on { background: transparent; border-color: transparent; filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 70%, transparent)); }
+.ico.rl.pic.on { outline: 1px solid color-mix(in srgb, currentColor 60%, transparent); outline-offset: 1px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -1596,7 +1601,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       rel.forEach(v => { cnt[gr(v)]++; });
       let relicH = '<section class="panel"><div class="blk-h"><h2>유물 <span class="cnt num">' + rel.length + '</span></h2><span class="sum">' +
         ORD.filter(g => cnt[g]).map(g => '<span class="n' + g + '">' + GN[g] + ' ' + cnt[g] + '</span>').join(' · ') + '</span></div>' +
-        (rel.length ? '<div class="icons">' + rel.map(v => '<button type="button" class="ico g' + gr(v) + (IMG('relic', v) ? ' pic' : '') + '" data-pop="relic" data-v="' + v + '" aria-label="' + esc((named && N.relic[v]) || '유물 ' + v) + '">' + (IMG('relic', v) ? '<img alt="" src="' + IMG('relic', v) + '">' : '<i></i>') + '</button>').join('') + '</div>' : '<p class="dim">없음</p>') +
+        (rel.length ? '<div class="icons">' + rel.map(v => '<button type="button" class="ico rl g' + gr(v) + (IMG('relic', v) ? ' pic' : '') + '" data-pop="relic" data-v="' + v + '" aria-label="' + esc((named && N.relic[v]) || '유물 ' + v) + '">' + (IMG('relic', v) ? '<img alt="" src="' + IMG('relic', v) + '">' : '<i></i>') + '</button>').join('') + '</div>' : '<p class="dim">없음</p>') +
         '<div class="subs"><div class="sub"><span class="k">저주</span>' + (end.curses.map(c => '<span class="hov" data-pop="curse" data-v="' + c.id + '" tabindex="0">' + nm('curse', c.id) + '</span> <span class="dim num">×' + c.n + '</span>').join(', ') || '<span class="dim">없음</span>') +
         '</div><div class="sub"><span class="k">물약</span>' + (end.potions.filter(v => v > 0).map(v => '<span class="hov" data-pop="potion" data-v="' + v + '" tabindex="0">' + nm('potion', v) + '</span>').join(', ') || '<span class="dim">없음</span>') + '</div></div></section>';
       /* 3) 덱 형태: 하수인과 모듈 */
@@ -2188,7 +2193,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       }
     }
     return '<article class="ec ' + cls + '" id="e-' + k + '-' + v + '">' +
-      '<span class="ico ' + cls + (img ? ' pic' : ' txt') + '" aria-hidden="true">' + (img ? '<img alt="" src="' + img + '">' : '<em>' + esc([...name][0]) + '</em>') + '</span>' +
+      '<span class="ico ' + cls + (img ? ' pic' : ' txt') + (k === 'relic' ? ' rl' : '') + '" aria-hidden="true">' + (img ? '<img alt="" src="' + img + '">' : '<em>' + esc([...name][0]) + '</em>') + '</span>' +
       '<div><h3>' + esc(name) + (k === 'term' && TM[v].n ? ' N' : '') + '</h3>' + //수치가 있는 용어는 "화상 N" (사용자 2026-11-08)
       (tags.length ? '<div class="ec-tags">' + tags.join('') + '</div>' : '') + st +
       (d ? '<p>' + fmtDesc(d, k === 'term' ? name : '') + '</p>' : k === 'minion' ? '' : k === 'enemy' ? '<p class="dim">특수능력 없음</p>' : '<p class="dim">설명 없음</p>') + extra + '</div></article>';
