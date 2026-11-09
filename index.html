@@ -83,9 +83,10 @@ textarea { width: 100%; box-sizing: border-box; min-height: calc(1.6em * 3 + 22p
 .up-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
 .up-head p { margin: 0; color: var(--dust); font-size: 0.9rem; }
 .up-head p b { color: var(--bone); font-weight: 600; }
-.up-head label { color: var(--void); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.pick-btn { position: relative; display: inline-flex; align-items: center; font-size: 0.85rem; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--void); color: var(--void); cursor: pointer; }
+.pick-btn:hover { background: var(--void); color: var(--ground); }
 .up-head input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.up-head label:focus-within { outline: 2px solid var(--void); outline-offset: 2px; }
+.pick-btn:focus-within { outline: 2px solid var(--void); outline-offset: 2px; }
 .up-act { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 button.go { background: var(--void); border-color: var(--void); color: var(--ground); font-weight: 800; padding: 7px 22px; font-size: 0.95rem; }
 button.go:hover { filter: brightness(1.1); color: var(--ground); background: var(--void); }
@@ -487,8 +488,9 @@ details.raw summary { font-size: 0.78rem; }
   <div class="intake-body">
   <section class="upload" id="drop" aria-labelledby="up-title">
     <div class="up-head">
-      <p id="up-title"><b>기록 화면 스크린샷</b>을 쪽 순서대로 끌어다 놓거나 붙여넣기(Ctrl+V), 또는 <label>파일 고르기<input type="file" id="file" accept="image/*" multiple></label></p>
+      <p id="up-title"><b>기록 화면 스크린샷</b></p>
       <div class="up-act">
+        <label class="pick-btn">사진 가져오기<input type="file" id="file" accept="image/*" multiple></label>
         <button type="button" id="btn-unq" disabled>사진 모두 빼기</button>
         <button type="button" class="go" id="btn-go" disabled>변환</button>
       </div>
@@ -498,7 +500,7 @@ details.raw summary { font-size: 0.78rem; }
         <input type="checkbox" id="agree">
         <span class="agree-t">기록 저장에 동의 <b class="agree-state" id="agree-state">꺼짐</b></span>
       </label>
-      <p class="agree-why">해독한 런 기록(시드, 지나간 층, 고른 모듈, 덱, 유물 등)을 게임 밸런스 개선을 위해 제작자의 구글 시트에 저장합니다. 이름이나 계정 같은 개인 정보는 저장하지 않습니다. 한 번 동의하면 이 브라우저가 기억해, 그다음부터 온전한 기록은 변환할 때 자동으로 저장됩니다.</p>
+      <p class="agree-why">해독한 런 기록(시드, 지나간 층, 고른 모듈, 덱, 유물 등)을 게임 밸런스 개선을 위해 제작자의 구글 시트에 저장합니다. 이름이나 계정 같은 개인 정보는 저장하지 않습니다.</p>
       <span class="save-st" id="save-st" role="status"></span>
     </div>
     <div class="thumbs" id="thumbs"></div>
