@@ -443,23 +443,6 @@ details.raw summary { font-size: 0.78rem; }
 .rc-share { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 0.78rem; }
 .rc-share button { border-radius: 999px; padding: 3px 12px; font-size: 0.78rem; border-color: var(--void); color: var(--void); }
 .rc-share button:hover { background: var(--void); color: var(--ground); }
-/* 체력·골드 그래프 */
-.hg-box { position: relative; user-select: none; cursor: crosshair; }
-.hg-t { margin: 2px 0 0; font-size: 0.74rem; color: var(--dust); display: flex; align-items: center; gap: 6px; }
-.hg-sw { width: 10px; height: 2px; border-radius: 1px; display: inline-block; } .hg-sw.hp { background: var(--bad); } .hg-sw.gd { background: var(--gold); }
-.hg-svg { display: block; width: 100%; overflow: visible; }
-.hg-svg .grid { stroke: var(--seam); stroke-width: 1; }
-.hg-svg .ax { fill: var(--dust); font-size: 10px; text-anchor: end; font-variant-numeric: tabular-nums; }
-.hg-svg .actl { stroke: var(--seam); stroke-dasharray: 3 3; }
-.hg-svg .actt { fill: var(--dust); font-size: 10px; }
-.hg-svg .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-#hg-hp .ln { stroke: var(--bad); } #hg-hp .area { fill: color-mix(in srgb, var(--bad) 12%, transparent); }
-#hg-gold .ln { stroke: var(--gold); } #hg-gold .area { fill: color-mix(in srgb, var(--gold) 10%, transparent); }
-.hg-svg .mx { fill: none; stroke: var(--dust); stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.7; }
-.hg-svg .xh { stroke: var(--bone); stroke-width: 1; opacity: 0.5; }
-#hg-hp .dot { fill: var(--bad); stroke: var(--rock); stroke-width: 2; } #hg-gold .dot { fill: var(--gold); stroke: var(--rock); stroke-width: 2; }
-.hg-tip { position: absolute; top: -6px; transform: translateY(-100%); pointer-events: none; display: flex; gap: 10px; white-space: nowrap; background: var(--ground); border: 1px solid var(--seam); border-radius: 8px; padding: 3px 9px; font-size: 0.76rem; color: var(--dust); }
-.hg-tip b { color: var(--bone); }
 /* 최근 기록 */
 .recent { margin-top: 10px; }
 .rec-list { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
@@ -1524,9 +1507,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   }
 
   /* 구조 기록 → 막 · 층 묶음 */
-  let chartPts = [];
   function renderMap(ev) {
-    let chartH = '';
     const offers = [];
     for (const e of ev) {
       if (e.type === 'offer') offers.push(e);
@@ -1584,13 +1565,6 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
         h += '</div></div>';
       });
       h += '</div></section>'; //안내 글 뺌 (사용자 2026-11-08)
-      /* 체력·골드 그래프 (사용자 2026-11-08): 판 7부터 방마다 남는 체력·골드. 축이 다른 두 값이라 그래프를 둘로 나눔 */
-      chartPts = [];
-      acts.forEach((a, ai) => a.floors.forEach((f, fi) => { const r = f.e; if (r && r.cur) chartPts.push({ act: a.n, floor: r.floor, hp: r.cur.hp, max: r.cur.max, gold: r.cur.gold, ai, fi }); }));
-      if (chartPts.length >= 2) chartH = '<section class="panel hg" id="hg"><div class="blk-h"><h2>체력 · 골드</h2><span class="sum">방에 들어갈 때 값 · 올리면 그 층, 누르면 층 내용</span></div>' +
-        '<div class="hg-box" id="hg-box"><p class="hg-t"><i class="hg-sw hp"></i>체력 <span class="dim">(점선 = 최대체력)</span></p><svg class="hg-svg" id="hg-hp" role="img" aria-label="층마다 체력"></svg>' +
-        '<p class="hg-t"><i class="hg-sw gd"></i>골드</p><svg class="hg-svg" id="hg-gold" role="img" aria-label="층마다 골드"></svg><div class="hg-tip" id="hg-tip" hidden></div></div></section>';
-      else chartPts = [];
     }
     if (end && end.state) {
       /* 2) 유물 현황 */
@@ -1622,7 +1596,6 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       h += '<div class="board">' + deckH + relicH + '</div>';
     }
     for (const w of warn) h += '<div class="warn-row">' + esc(w) + '</div>';
-    h += chartH; //체력·골드 그래프는 맨 아래 (사용자 2026-11-08 "한 눈에 안 들어와서 맨 아래로")
     h += '<details class="raw"><summary>글로 보기</summary><div class="raw-bar"><button type="button" id="btn-copy">글 복사</button><span class="toast2" id="toast2" role="status"></span></div><pre>' + esc(lastLog) + '</pre></details>';
     return { html: h, head, end, acts };
   }
@@ -2283,50 +2256,6 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     $('code-st').insertAdjacentHTML('beforeend', '<span class="bad">' + res.problemLine + '번째 줄(사진으로는 ' + page + '쪽 근처)부터 기록 내용이 이상합니다. 쪽이 빠졌거나 순서가 바뀌었는지, 그 줄을 잘못 읽었는지 확인하세요. 그 뒤 내용은 틀릴 수 있습니다.</span>');
   }
 
-  /* ===== 체력·골드 그래프 ===== 선 2px, 축 하나씩, 올리면 세로선 + 값, 누르면 그 층 팝업 */
-  function drawChart() {
-    const box = $('hg-box');
-    if (!box || chartPts.length < 2) return;
-    const P = chartPts, n = P.length, W = box.clientWidth, L = 40, R = 10;
-    const X = i => L + i * (W - L - R) / (n - 1);
-    const one = (id, H, val, top, extra) => {
-      const svg = $(id), T = 14, B = 6, Y = v => T + (H - T - B) * (1 - v / (top || 1));
-      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('height', H);
-      let g = '';
-      [0, top].forEach(v => { g += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/><text class="ax" x="' + (L - 6) + '" y="' + (Y(v) + 4) + '">' + v + '</text>'; });
-      for (let i = 1; i < n; i++) if (P[i].act !== P[i - 1].act) { const x = (X(i) + X(i - 1)) / 2; g += '<line class="actl" x1="' + x + '" x2="' + x + '" y1="' + (T - 10) + '" y2="' + (H - B) + '"/>'; }
-      if (id === 'hg-hp') P.forEach((p, i) => { if (!i || p.act !== P[i - 1].act) g += '<text class="actt" x="' + (X(i) + 3) + '" y="10">' + p.act + '막</text>'; });
-      g += extra ? extra(X, Y) : '';
-      const pts = P.map((p, i) => X(i) + ',' + Y(val(p))).join(' ');
-      g += '<polygon class="area" points="' + X(0) + ',' + Y(0) + ' ' + pts + ' ' + X(n - 1) + ',' + Y(0) + '"/><polyline class="ln" points="' + pts + '"/>';
-      g += '<line class="xh" id="' + id + '-xh" y1="' + (T - 4) + '" y2="' + (H - B) + '" visibility="hidden"/><circle class="dot" id="' + id + '-dot" r="4" visibility="hidden"/>';
-      svg.innerHTML = g;
-      return Y;
-    };
-    const maxHp = Math.max(...P.map(p => p.max)), maxGold = Math.max(...P.map(p => p.gold), 1);
-    const yHp = one('hg-hp', 110, p => p.hp, maxHp, (X, Y) => '<polyline class="mx" points="' + P.map((p, i) => X(i) + ',' + Y(p.max)).join(' ') + '"/>');
-    const yGd = one('hg-gold', 70, p => p.gold, maxGold);
-    const tip = $('hg-tip');
-    const at = e => { const r = box.getBoundingClientRect(); return Math.max(0, Math.min(n - 1, Math.round((e.clientX - r.left - L) / ((W - L - R) / (n - 1))))); };
-    const show = i => {
-      const p = P[i], x = X(i);
-      [['hg-hp', yHp(p.hp)], ['hg-gold', yGd(p.gold)]].forEach(([id, y]) => {
-        const xh = $(id + '-xh'), d = $(id + '-dot');
-        xh.setAttribute('x1', x); xh.setAttribute('x2', x); xh.setAttribute('visibility', 'visible');
-        d.setAttribute('cx', x); d.setAttribute('cy', y); d.setAttribute('visibility', 'visible');
-      });
-      tip.innerHTML = '<b>' + p.act + '막 ' + p.floor + '층</b><span>체력 <b class="num">' + p.hp + '</b>/' + p.max + '</span><span>골드 <b class="num">' + p.gold + '</b></span>';
-      tip.hidden = false;
-      tip.style.left = Math.max(0, Math.min(W - tip.offsetWidth, x - tip.offsetWidth / 2)) + 'px';
-    };
-    const hide = () => { tip.hidden = true; ['hg-hp', 'hg-gold'].forEach(id => { $(id + '-xh').setAttribute('visibility', 'hidden'); $(id + '-dot').setAttribute('visibility', 'hidden'); }); };
-    box.onpointermove = e => show(at(e));
-    box.onpointerleave = hide;
-    box.onclick = e => { const p = P[at(e)], t = document.querySelector('.tile[data-a="' + p.ai + '"][data-f="' + p.fi + '"]'); if (t) { e.stopPropagation(); t.scrollIntoView({ block: 'nearest' }); showPop(t, true); } };
-  }
-  let chartW = 0;
-  addEventListener('resize', () => { const b = $('hg-box'); if (b && b.clientWidth !== chartW) { chartW = b.clientWidth; drawChart(); } });
-
   /* ===== 공유 링크 ===== (사용자 2026-11-08 "더 짧게")
    * 1) 짧은 링크 #s=기록지문 (예 #s=276750-XHBXVE): 링크 복사를 누르면 기록 코드를 시트(앱스 스크립트 '공유' 탭)에 맡기고 지문만 주소에 넣음.
    *    여는 쪽은 시트에서 코드를 받아 옴. 시트가 안 되면(스크립트가 예전 판, 연결 안 됨) 2)로
@@ -2445,7 +2374,6 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     runVer = head ? head.ver : 7; runCls = head && head.ver >= 8 ? head.cls : -1;
     const m = renderMap(res.ev);
     $('map').innerHTML = m.html;
-    drawChart();
     maybeSave(res);
     if (!head) { $('hero').innerHTML = '<p class="empty">해독할 수 있는 줄이 없습니다.</p>'; lastRes = null; drawRecent(); return; }
     const lastRoom = [...res.ev].reverse().find(e => e.type === 'room');
