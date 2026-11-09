@@ -551,7 +551,7 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
   const VAL = {};
   for (let i = 0; i < 32; i++) VAL[ALPHA[i]] = i;
   /* 글자 인식이 자주 헷갈리는 짝. 확인 글자가 안 맞을 때 이 안에서 한 글자씩 바꿔 봄 */
-  const LOOKALIKE = ['2Z', '5S', '8B3S', '6G', 'UV', 'MN', 'KX', 'EF', 'PR', '7T', '9Q', 'DQ', 'A4'];
+  const LOOKALIKE = ['2Z', '5S', '8B3S', '6G', 'CD', 'UV', 'MN', 'KX', 'EF', 'PR', '7T', '9Q', 'DQ', 'A4'];
   const ALT = {};
   for (const g of LOOKALIKE) for (const c of g) ALT[c] = (ALT[c] || '') + g.replace(c, '');
   /* 코드 글자에 없는 글자 → 와일드카드 (확인 글자로 풀 수 있음). 0·O·1·I는 일부러 뺀 글자 */
@@ -785,7 +785,7 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
           const kind = r.bits(1), n = r.bits(3), w = kind ? W.min : W.mod;
           const ids = [], idv = [];
           odd(n === 0 || n > 4, at);
-          for (let i = 0; i < n; i++) { const v = r.bits(w); odd(!has(kind ? 'minion' : 'module', v), at); ids.push(nm(kind ? 'minion' : 'module', v)); idv.push(v); }
+          for (let i = 0; i < n; i++) { const v = r.bits(w); odd(v !== 0 && !has(kind ? 'minion' : 'module', v), at); /* 빈 후보 0은 정상 (2026-11-08 시드 539704: 특수 모듈 포효 하나 + 빈 칸 2) */ ids.push(nm(kind ? 'minion' : 'module', v)); idv.push(v); }
           ev.push({ type: 'offer', at, kind, ids: idv });
           out.push(P + '후보 ' + (kind ? '하수인' : '모듈') + ' [' + ids.join(', ') + ']');
         } else if (tag === 4) {
@@ -844,8 +844,9 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
           out.push(P + '##### 런 끝: ' + ENDING[ending] + ' 마지막 편성' + nm('encounter', enc) + ' 점수' + score + ' 처치' + kills);
           endEv.state = state('    ');
           const nr = r.bits(8), rel = [];
+          odd(nr > 100, r.p); //쪽이 빠지면 끝 기록이 엉뚱한 자리에서 읽혀 유물 수가 터무니없어짐 (2026-11-08 시드 539704)
           endEv.relics = [];
-          for (let i = 0; i < nr; i++) { const rv = r.bits(W.relic); endEv.relics.push(rv); rel.push(nm('relic', rv)); }
+          for (let i = 0; i < nr; i++) { const rv = r.bits(W.relic); odd(useNames && !has('relic', rv), r.p); endEv.relics.push(rv); rel.push(nm('relic', rv)); }
           out.push('    유물 ' + nr + '개: ' + rel.join(', '));
           const cur = [];
           endEv.curses = [];
@@ -853,7 +854,7 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
           out.push('    저주: ' + (cur.join(', ') || '없음'));
           const np = r.bits(3), pots = [];
           endEv.potions = [];
-          for (let i = 0; i < np; i++) { const pv2 = r.bits(W.pot); endEv.potions.push(pv2); pots.push(nm('potion', pv2)); }
+          for (let i = 0; i < np; i++) { const pv2 = r.bits(W.pot); odd(useNames && pv2 > 0 && !has('potion', pv2), r.p); endEv.potions.push(pv2); pots.push(nm('potion', pv2)); }
           out.push('    물약 칸 ' + np + ': ' + pots.join(', '));
           ended = true;
           odd(r.left() >= 10, r.p);
@@ -955,7 +956,12 @@ const RUNLOG_NAMES = {"version": 7, "module": ["", "부식 광선", "연발 사�
     let log = [];
     if (syms.length) log = decodeSyms(syms, names);
     if (stopAt > 0) { if (log.ev) log.ev.push({ type: 'stop', line: stopAt }); log.push('(' + stopAt + '번째 줄을 고치지 못해 그 앞까지만 해독함)'); }
-    return { lines: fixed, log: log, ev: log.ev || [], stopAt: stopAt, ok: stopAt < 0 && fixed.every(f => f.status !== 'guess') };
+    /* 이상한 기록이 처음 나온 줄 (쪽이 빠졌거나 순서가 바뀌었거나, 확인 글자로 못 잡은 인식 오류) */
+    const problemLine = log.problemAt !== undefined && log.problemAt !== Infinity ? Math.floor(log.problemAt / 5 / LINE_SYMS) + 1 : 0;
+    /* 게임은 런이 끝났을 때만 코드를 보여 주므로 끝 기록(결과)이 없으면 쪽이 빠졌거나 잘린 것 (2026-11-08 시드 539704: 5쪽이 빠져 4쪽 뒤에 6쪽이 붙음).
+     * 런마다 글자 상한(RunLog.SYM_CAP 4000자 = 약 55줄)에 닿아 잘린 기록은 예외 */
+    const noEnd = syms.length > 0 && stopAt < 0 && !log.ended && syms.length < 3900;
+    return { lines: fixed, log: log, ev: log.ev || [], stopAt: stopAt, problemLine, noEnd, ok: stopAt < 0 && !problemLine && !noEnd && fixed.every(f => f.status !== 'guess') };
   }
 
   const api = { DIFF, ROOM, CAMP, SHOP, GAIN, ENDING, UPG, ALPHA, LINE_SYMS, check, splitLines, repairLine, decodeSyms, decodeText };
@@ -1798,6 +1804,8 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   async function maybeSave(res) {
     if (!CAN_SAVE || !$('agree').checked) { saveSay(''); return; }
     const bad = res.lines.filter(l => l.status !== 'ok' && l.status !== 'fixed').length;
+    if (res.noEnd) { saveSay('기록 끝(런 결과)이 없어 저장하지 않았습니다. 빠진 쪽이 없는지 확인하세요.', 'warn'); return; }
+    if (res.problemLine) { saveSay('기록 내용이 중간부터 이상해 저장하지 않았습니다. 빠진 쪽이나 줄을 확인하세요.', 'warn'); return; }
     if (bad) { saveSay('확인이 필요한 줄이 ' + bad + '개 있어 저장하지 않았습니다. 줄을 고친 뒤 코드 확인을 누르면 저장됩니다.', 'warn'); return; }
     if (!res.ev.find(e => e.type === 'end') || res.ev.find(e => e.type === 'cut' || e.type === 'stop')) { saveSay('런 끝까지 이어진 기록이 아니라 저장하지 않았습니다. 빠진 쪽이 있는지 확인하세요.', 'warn'); return; }
     const p = buildPayload(res);
@@ -2192,6 +2200,13 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const rows = prob.filter(l => l.status !== 'fixed').map(l => '<span class="' + (l.status === 'bad' ? 'bad' : 'warn') + '">' + l.n + '번째 줄: ' + esc(l.note) + '</span>');
     st.innerHTML = '<span>' + h + '</span>' + rows.join('');
   }
+  /* 해독은 됐지만 중간부터 값이 이상할 때 (쪽 빠짐·순서 바뀜 등) */
+  function warnProblem(res) {
+    if (res.noEnd) $('code-st').insertAdjacentHTML('beforeend', '<span class="bad">기록 끝(런 결과)이 없습니다. 게임은 런이 끝나야 코드를 보여 주므로 <b>쪽이 빠졌거나 순서가 바뀌었을</b> 가능성이 큽니다. 사진이 ' + Math.ceil(res.lines.length / 10) + '쪽 분량(' + res.lines.length + '줄)인데, 게임 화면의 "런 기록 n/N" 쪽 수와 맞는지 확인하세요.</span>');
+    if (!res.problemLine) return;
+    const page = Math.ceil(res.problemLine / 10);
+    $('code-st').insertAdjacentHTML('beforeend', '<span class="bad">' + res.problemLine + '번째 줄(사진으로는 ' + page + '쪽 근처)부터 기록 내용이 이상합니다. 쪽이 빠졌거나 순서가 바뀌었는지, 그 줄을 잘못 읽었는지 확인하세요. 그 뒤 내용은 틀릴 수 있습니다.</span>');
+  }
 
   /* ===== 체력·골드 그래프 ===== 선 2px, 축 하나씩, 올리면 세로선 + 값, 누르면 그 층 팝업 */
   function drawChart() {
@@ -2348,6 +2363,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     }
     const res = D.decodeText(src.value, N);
     renderCheck(res.lines);
+    warnProblem(res);
     lastLog = res.log.join('\n');
     const head = res.ev.find(e => e.type === 'head');
     named = !head || head.named;
@@ -2360,7 +2376,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     const battles = res.ev.filter(e => e.type === 'battle');
     const end = m.end, st = end && end.state;
     const resCls = !end ? 'cut' : end.ending ? 'win' : 'lose';
-    const resTxt = !end ? '진행 중 기록' : D.ENDING[end.ending];
+    const resTxt = !end ? (res.noEnd ? '결과 기록 없음' : '진행 중 기록') : D.ENDING[end.ending];
     const stat = (k, v, cls) => '<div class="rc-s' + (cls ? ' ' + cls : '') + '"><dt>' + k + '</dt><dd class="num">' + v + '</dd></div>';
     $('hero').innerHTML = '<div class="runcard ' + resCls + '">' +
       '<div class="rc-top"><div class="rc-res"><span class="rc-badge">' + resTxt + '</span>' +
