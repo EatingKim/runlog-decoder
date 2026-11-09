@@ -417,7 +417,6 @@ details.raw summary { font-size: 0.78rem; }
 .see-mods:hover { color: var(--ground); background: var(--c); border-color: var(--c); }
 .ec { position: relative; overflow: hidden; display: grid; grid-template-columns: 44px 1fr; gap: 11px; align-items: start; border: 1px solid var(--seam); border-radius: 10px; padding: 10px 12px 11px 14px; scroll-margin: 80px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--c) 9%, var(--rock)) 0%, var(--rock) 55%); transition: border-color .15s, transform .15s; }
-.ec::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--c); opacity: 0.85; }
 .ec:hover { border-color: color-mix(in srgb, var(--c) 55%, var(--seam)); transform: translateY(-1px); }
 .ec .ico { width: 44px; height: 44px; cursor: default; color: var(--c); border-color: color-mix(in srgb, var(--c) 60%, transparent); background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--c) 30%, var(--ground)), color-mix(in srgb, var(--c) 8%, var(--ground))); }
 .ec .ico.txt em { font-style: normal; font-family: var(--f-display); font-size: 1.2rem; font-weight: 700; color: var(--c); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 50%, transparent); }
@@ -457,6 +456,64 @@ details.raw summary { font-size: 0.78rem; }
 .ico.pic img { width: 100%; height: 100%; }
 .ico.pic:hover, .ico.pic.on { background: transparent; border-color: transparent; filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 70%, transparent)); }
 .ico.pic.on { outline: 1px solid color-mix(in srgb, currentColor 60%, transparent); outline-offset: 1px; }
+/* ===== Game UI Style Lab 참고 (사용자 2026-11-09 "한 번 해봐") (절단형 모서리 · 결과 화면 강조 · 눌림 반응) ===== */
+
+/* 1) 절단형 모서리: 왼쪽 위·오른쪽 아래를 비스듬히 자르고, 잘린 자리에 테두리 색 대각선을 그림 */
+.panel, .runcard, .ec, .pop, .intake-bar, .upload, .consent, .code-in textarea {
+  --cut: 12px; --edge: var(--seam);
+  position: relative;
+  border-radius: 0 !important;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+}
+.ec { --cut: 10px; }
+.pop { --cut: 10px; position: fixed; }
+.runcard { --cut: 18px; --edge: color-mix(in srgb, var(--tone) 55%, var(--seam)); }
+.consent { --edge: var(--void); }
+.ec { --edge: color-mix(in srgb, var(--c) 45%, var(--seam)); }
+/* 대각선: ::before 왼쪽 위, ::after 오른쪽 아래 (카드의 왼쪽 색 줄은 box-shadow로 옮김) */
+.panel::before, .runcard::before, .ec::before, .pop::before, .intake-bar::before, .upload::before, .consent::before,
+.panel::after, .runcard::after, .ec::after, .pop::after, .intake-bar::after, .upload::after, .consent::after {
+  content: ""; position: absolute; width: calc(var(--cut) * 1.4143); height: 1px; background: var(--edge); pointer-events: none; z-index: 1;
+  inset: auto; opacity: 1;
+}
+.panel::before, .runcard::before, .ec::before, .pop::before, .intake-bar::before, .upload::before, .consent::before {
+  left: 0; top: var(--cut); transform-origin: 0 50%; transform: rotate(-45deg);
+}
+.panel::after, .runcard::after, .ec::after, .pop::after, .intake-bar::after, .upload::after, .consent::after {
+  right: 0; bottom: var(--cut); transform-origin: 100% 50%; transform: rotate(-45deg);
+}
+.consent::before, .consent::after { height: 2px; }
+.ec { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--c) 85%, transparent); }
+/* 패널 위쪽에 아주 얇은 금속 광택 줄 (8단계 "금속"을 약하게) */
+.panel, .ec { background-image: linear-gradient(180deg, color-mix(in srgb, var(--bone) 5%, transparent), transparent 40px); }
+/* 버튼도 각지게 */
+button, .pick-btn, .views, .chip, .tag, .rec { border-radius: 0 !important; clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+.views button { clip-path: none; }
+.tile { border-radius: 0 !important; clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); }
+
+/* 2) 결과 카드를 게임 결과 화면처럼 */
+.runcard {
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--tone) 22%, transparent), transparent 55%),
+    linear-gradient(90deg, color-mix(in srgb, var(--tone) 10%, var(--rock)), var(--rock) 70%) !important;
+}
+.runcard .rc-top { border-bottom: 1px solid color-mix(in srgb, var(--tone) 30%, transparent); padding-bottom: 10px; }
+.rc-badge {
+  font-family: var(--f-display); font-size: clamp(2rem, 5vw, 2.8rem) !important; letter-spacing: 0.06em !important;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--tone) 60%, transparent), 0 0 2px color-mix(in srgb, var(--tone) 80%, transparent);
+}
+.rc-where { letter-spacing: 0.02em; }
+.rc-seed span { text-shadow: 0 0 10px color-mix(in srgb, var(--bone) 25%, transparent); }
+/* 점수·처치는 크게 */
+.rc-stats .rc-s:nth-child(-n+3) dd { font-family: var(--f-display); }
+.rc-stats dt { letter-spacing: 0.08em; }
+.rc-stats { border-top: 0 !important; }
+
+/* 3) 눌림 반응 (11단계 "즉각적" 90ms) */
+button, .tile, .ico, .chip, .pick-btn, [data-ency], .rec-open { transition: transform 90ms ease-out, background-color .15s, border-color .15s, color .15s, filter .15s; }
+button:active, .tile:active, .ico:active, .chip:active, .pick-btn:active, .rec-open:active { transform: scale(0.94); }
+.ec:active { transform: scale(0.995); }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
