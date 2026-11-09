@@ -2419,7 +2419,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
       '<div class="rc-top"><div class="rc-res"><span class="rc-badge">' + resTxt + '</span>' +
       (lastRoom ? '<span class="rc-where">' + lastRoom.act + '막 ' + lastRoom.floor + '층' + (end ? ' · ' + esc(txtN('encounter', end.enc)) : '') + '</span>' : '') + '</div>' +
       '<div class="rc-seed"><small>시드</small><span class="num">' + head.seed + '</span></div></div>' +
-      (shareCode(res) ? '<div class="rc-share"><button type="button" id="btn-share">링크 복사</button><span class="dim" id="share-st">이 기록을 그대로 보여 주는 주소 (짧은 링크는 기록 코드를 제작자 시트에 맡김)</span></div>' : '') +
+      (shareCode(res) ? '<div class="rc-share"><button type="button" id="btn-share">링크 복사</button><span class="dim" id="share-st"></span></div>' : '') +
       '<dl class="rc-stats">' +
       stat('난이도', D.DIFF[head.diff] || head.diff) +
       (end ? stat('점수', end.score) + stat('처치', end.kills) : '') +
@@ -2433,8 +2433,8 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   }
   /* 입력 칸 접기: 해독이 되면 한 줄 요약으로 접고, "기록 다시 넣기"로 펼침 */
   function intakeDone(res) {
-    const n = queue.length, lines = res.lines.length;
-    $('intake-sum').innerHTML = '<b>기록 넣음</b>' + (n ? ' · 사진 ' + n + '장' : '') + ' · ' + lines + '줄' + ($('save-st').textContent ? '<span class="svs ' + $('save-st').className.replace('save-st', '').trim() + '"> · ' + esc($('save-st').textContent) + '</span>' : '');
+    //요약 줄은 "기록을 넘겼습니다"만 (사진 수·줄 수는 펼친 칸 안에서 보임)
+    $('intake-sum').innerHTML = '<b>기록을 넘겼습니다</b>'; //사용자 2026-11-08 "그냥 기록을 넘겼다고만" (사진 수·줄 수·저장 결과는 펼친 칸 안에)
     $('intake').classList.add('done');
   }
   function setText(t) { src.value = t; render(); }
