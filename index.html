@@ -568,6 +568,11 @@ html, body {
 .views button.on, .ency-cats button.on { background: var(--void) !important; color: #120d22 !important; border-color: var(--void) !important; }
 .ency-cats button.on b { color: #2a1f52 !important; }
 
+/* 덱 칸 하수인 등급 표시 (사용자 2026-11-10): 틀을 빼서 안 보이던 등급 색을 그림 아래 짧은 줄로 (하급 흰색 · 중급 파랑 · 상급 노랑) */
+.slot .ico.pic { position: relative; overflow: visible; }
+.slot .ico.pic::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: 1px; height: 2px; border-radius: 1px; background: currentColor; opacity: .9;
+  box-shadow: 0 0 6px color-mix(in srgb, currentColor 60%, transparent); }
+.slot .ico.pic.bench::after { opacity: .5; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
