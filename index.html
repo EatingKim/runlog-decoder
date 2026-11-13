@@ -435,8 +435,10 @@ details.raw summary { font-size: 0.78rem; }
 .ec p { margin: 0; font-size: 0.8rem; line-height: 1.5; color: color-mix(in srgb, var(--bone) 82%, var(--dust)); white-space: pre-line; overflow-wrap: anywhere; }
 .ec .st { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 0.76rem; color: var(--dust); margin-top: 4px; }
 .ec .st b { color: var(--bone); font-weight: 600; }
-.ec.flash { animation: ecflash 1.6s ease-out; }
-@keyframes ecflash { 0%, 40% { border-color: var(--void); box-shadow: 0 0 0 3px color-mix(in srgb, var(--void) 45%, transparent); } 100% { border-color: var(--seam); box-shadow: none; } }
+/* 백과사전으로 넘어왔을 때 그 카드 전체를 흰색으로 덮었다가 서서히 걷음 (사용자 2026-11-13 "테두리만 반짝이니까 눈에 잘 안 띔"). --fl = 흰 덮개 짙기 */
+@property --fl { syntax: '<number>'; inherits: false; initial-value: 0; }
+.ec.flash { animation: ecflash 2.2s ease-out; }
+@keyframes ecflash { 0%, 35% { --fl: .32; border-color: #fff; } 100% { --fl: 0; border-color: var(--seam); } }
 .ency-empty { color: var(--dust); font-size: 0.85rem; padding: 12px 0; }
 .rc-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
 .rc-share { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 0.78rem; }
@@ -541,7 +543,7 @@ html, body {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, .035), transparent 60px) !important;
   box-shadow: inset 0 1px 0 var(--edge-hi), 0 8px 28px rgba(0, 0, 0, .55) !important;
 }
-.ec { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--c) 80%, transparent), inset 0 1px 0 var(--edge-hi), 0 6px 20px rgba(0, 0, 0, .45) !important; }
+.ec { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--c) 80%, transparent), inset 0 1px 0 var(--edge-hi), inset 0 0 0 999px rgba(255, 255, 255, var(--fl)), 0 6px 20px rgba(0, 0, 0, .45) !important; }
 /* 패널 안 칸은 한 단계 어둡게 */
 .field, textarea, .bench-grid, details.raw pre, #ency-q { background: var(--well) !important; }
 .slot { border-color: #262a34 !important; }
