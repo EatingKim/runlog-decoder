@@ -1509,6 +1509,8 @@ const RUNLOG_NAMES = {"version": 8, "module": ["", "부식 광선", "연발 사�
     const gap = gapFill(r, f);
     if (gap) f = gap;
     const parts = f.text.split(' ');
+    /* 코드 줄 모양("본문 확인글자")이 아니고 짧은 줄은 화면의 다른 글 (2026-11-14 "FPS: 118" 표시가 코드 줄로 읽혀 쪽 순서가 꼬임) */
+    if ((parts.length !== 2 || parts[1].length !== 1) && f.text.replace(/ /g, '').length < 20) return null;
     let sure = false;
     if (parts.length === 2 && parts[1].length === 1 && f.fixed >= 0 && !f.weak.length) {
       sure = ALPHA[chk(Array.from(parts[0], c => ALPHA.indexOf(c)))] === parts[1];
