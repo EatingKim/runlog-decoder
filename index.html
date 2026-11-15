@@ -1952,6 +1952,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   const SAVE_URL = 'https://script.google.com/macros/s/AKfycbxIBcPuZ96nnvNomtk65lXb_qVDEQupzusD5KYh_AUyNfhURhHkcGinazMti1rQPzcH/exec';
   const CAN_SAVE = /github\.io$/.test(location.hostname) || location.protocol === 'file:'; //claude.ai 미리보기 등에서는 밖으로 보낼 수 없음
   const savedFp = {};
+  const SAVE_MIN_VER = 8; //V7 이하는 맵 판·직업이 없는 예전 기록이라 시트에 저장하지 않음 (사용자 2026-11-15 "7버전 이하는 필요 없는 기록")
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
   const HEAD = {
     '선택': ['결과', '막', '층', '구간', '종류', '후보 1', '후보 2', '후보 3', '후보 4', '고른 것'],
@@ -1987,6 +1988,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     if (!res.ev.find(e => e.type === 'end') || res.ev.find(e => e.type === 'cut' || e.type === 'stop')) { saveSay('런 끝까지 이어진 기록이 아니라 저장하지 않았습니다. 빠진 쪽이 있는지 확인하세요.', 'warn'); return; }
     const p = buildPayload(res);
     if (!p) return;
+    if (p.ver < SAVE_MIN_VER) { saveSay('기록코드 V' + p.ver + ' 기록은 예전 맵이라 저장하지 않습니다 (V' + SAVE_MIN_VER + '부터 저장). 해독해서 보는 것은 그대로 됩니다.', 'warn'); return; }
     if (savedFp[p.fp]) { saveSay(savedFp[p.fp], 'ok'); return; }
     saveSay('기록을 저장하는 중…');
     try {
