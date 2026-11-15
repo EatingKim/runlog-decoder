@@ -676,7 +676,16 @@ const RUNLOG_NAMES = {"version": 8, "module": ["", "부식 광선", "연발 사�
   /* 글 → 줄 목록 [{n, data, chk, raw}] */
   function splitLines(text) {
     const out = [];
-    for (let raw of text.split(/\r?\n/)) {
+    /* 시트의 '기록 코드' 칸(줄바꿈·확인 글자 없이 한 줄로 이은 것, 공유용은 '-'로 이음)을 붙여 넣으면 72글자 줄 + 확인 글자로 되돌림 (2026-11-15) */
+    const rawLines = [];
+    for (const r of text.split(/\r?\n/)) {
+      const s = r.trim().toUpperCase();
+      if (s.length > LINE_SYMS + 2 && /^[2-9A-HJ-NP-Z-]+$/.test(s)) {
+        const parts = s.indexOf('-') >= 0 ? s.split('-') : s.match(new RegExp('.{1,' + LINE_SYMS + '}', 'g'));
+        for (const q of parts) if (q) rawLines.push(q + ' ' + ALPHA[check(Array.from(q, c => ALPHA.indexOf(c)))]);
+      } else rawLines.push(r);
+    }
+    for (let raw of rawLines) {
       if (/[가-힣]/.test(raw)) continue; //쪽 제목·안내
       /* 줄 중간의 빈칸 = 사진 인식이 글자를 빈칸으로 읽은 자리 (2026-11-08 "KK 4E4B2": T가 빈칸으로). 모자란 글자 수만큼이면 그 빈칸들을 모르는 글자로 */
       const tok = raw.trim().split(/\s+/);
