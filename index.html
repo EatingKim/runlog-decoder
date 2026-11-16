@@ -1561,6 +1561,8 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   const D = window.RunLogDecode, N = RUNLOG_NAMES;
   const $ = id => document.getElementById(id);
   const src = $('src');
+  let inputVia = '입력'; //오류 기록용: 마지막 코드가 사진 판독인지 직접 입력인지
+  src.addEventListener('input', () => { inputVia = '입력'; });
   let lastLog = '', named = true;
   const BASE = t => (named && N.base && N.base.minion && N.base.minion[t]) || null; //하수인 기본 [체력, 방어, 공격주기, 공격력]
   const IMG = (k, v) => { const x = (named && N.img && N.img[k] && N.img[k][v]) || ''; return x.startsWith('u:') ? (N.img.unit || {})[x.slice(2)] || '' : x; }; //그림 (이미지 폴더에서 build.py가 넣음). 'u:유닛'은 하수인·적이 같이 쓰는 유닛 그림. 없으면 등급 색 네모
@@ -1981,11 +1983,11 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
   async function maybeSave(res) {
     if (!CAN_SAVE || !$('agree').checked) { saveSay(''); return; }
     const bad = res.lines.filter(l => l.status !== 'ok' && l.status !== 'fixed').length;
-    if (res.sumOk === false) { saveSay('전체 확인값이 맞지 않아 저장하지 않았습니다.', 'warn'); return; }
-    if (res.noEnd) { saveSay('기록 끝(런 결과)이 없어 저장하지 않았습니다. 빠진 쪽이 없는지 확인하세요.', 'warn'); return; }
-    if (res.problemLine) { saveSay('기록 내용이 중간부터 이상해 저장하지 않았습니다. 빠진 쪽이나 줄을 확인하세요.', 'warn'); return; }
-    if (bad) { saveSay('확인이 필요한 줄이 ' + bad + '개 있어 저장하지 않았습니다. 줄을 고친 뒤 코드 확인을 누르면 저장됩니다.', 'warn'); return; }
-    if (!res.ev.find(e => e.type === 'end') || res.ev.find(e => e.type === 'cut' || e.type === 'stop')) { saveSay('런 끝까지 이어진 기록이 아니라 저장하지 않았습니다. 빠진 쪽이 있는지 확인하세요.', 'warn'); return; }
+    if (res.sumOk === false) { saveSay('전체 확인값이 맞지 않아 저장하지 않았습니다.', 'warn'); saveError(res, '전체 확인값 틀림'); return; }
+    if (res.noEnd) { saveSay('기록 끝(런 결과)이 없어 저장하지 않았습니다. 빠진 쪽이 없는지 확인하세요.', 'warn'); saveError(res, '기록 끝 없음'); return; }
+    if (res.problemLine) { saveSay('기록 내용이 중간부터 이상해 저장하지 않았습니다. 빠진 쪽이나 줄을 확인하세요.', 'warn'); saveError(res, res.problemLine + '번째 줄부터 내용 이상'); return; }
+    if (bad) { saveSay('확인이 필요한 줄이 ' + bad + '개 있어 저장하지 않았습니다. 줄을 고친 뒤 코드 확인을 누르면 저장됩니다.', 'warn'); saveError(res, '확인 글자 틀린 줄 ' + bad + '개'); return; }
+    if (!res.ev.find(e => e.type === 'end') || res.ev.find(e => e.type === 'cut' || e.type === 'stop')) { saveSay('런 끝까지 이어진 기록이 아니라 저장하지 않았습니다. 빠진 쪽이 있는지 확인하세요.', 'warn'); saveError(res, '런 끝까지 이어지지 않음'); return; }
     const p = buildPayload(res);
     if (!p) return;
     if (p.ver < SAVE_MIN_VER) { saveSay('기록코드 V' + p.ver + ' 기록은 예전 맵이라 저장하지 않습니다 (V' + SAVE_MIN_VER + '부터 저장). 해독해서 보는 것은 그대로 됩니다.', 'warn'); return; }
@@ -2000,6 +2002,22 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
     } catch (e) {
       saveSay('기록을 저장하지 못했습니다: ' + e.message + '. 잠시 뒤 코드 확인을 다시 눌러 보세요.', 'bad');
     }
+  }
+  /* 오류 기록 (사용자 2026-11-16 "판독기에서 코드 오류 인식하면 오류 탭으로 따로 저장"): 저장 동의한 상태에서 해독이 막힌 코드를 시트 '오류' 탭에 보냄.
+   * 판독기 개선용. 같은 글은 한 번만 (지문 = 시드 + 코드 글의 해시) */
+  const errSent = {};
+  async function saveError(res, reason) {
+    if (!CAN_SAVE || !$('agree').checked) return;
+    const head = res.ev.find(e => e.type === 'head');
+    const code = src.value.toUpperCase().replace(/[^0-9A-Z?\s-]/g, '').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim().slice(0, 7000);
+    if (!code) return;
+    const fp = runId(head ? head.seed : 0, code);
+    if (errSent[fp]) return;
+    errSent[fp] = 1;
+    const bad = res.lines.filter(l => l.status !== 'ok').slice(0, 30).map(l => l.n + '번째 줄: ' + (l.status === 'fixed' ? '고침' : l.status === 'guess' ? '추정' : '못 고침') + (l.note ? ' · ' + l.note : '')).join('\n').slice(0, 3000);
+    const body = { action: 'error', fp, reason, via: inputVia, ver: head ? head.ver : '', seed: head ? head.seed : '', mapVer: head && head.ver >= 8 ? head.mapVer : '',
+      lines: res.lines.length, bad, code };
+    try { await fetch(SAVE_URL, { method: 'POST', body: JSON.stringify(body) }); } catch (e) { delete errSent[fp]; }
   }
   function encName(id) { //편성 이름 "어둑술사 + 악성좀비×3"의 적 이름마다 백과사전 적 카드로
     const t = (named && N.encounter[id]) || '';
@@ -2638,6 +2656,7 @@ const RUNLOG_OCR_TEMPLATES = {"H":19,"chars":{"2":{"w":14,"g":[0,36,145,198,229,
         ocrSt.textContent = texts.length + '줄 읽음' +
           (moved !== -1 ? ' · 사진 순서를 기록 내용에 맞춰 바꿨습니다 (올린 순서 ' + moved.map(i => i + 1).join('→') + ')' : '') +
           (bad ? ' · ' + bad + '줄은 확인 글자가 맞지 않습니다. 아래 코드 확인 결과를 보세요' : '');
+        inputVia = '사진';
         setText(texts.join('\n'));
         toResult();
       }
