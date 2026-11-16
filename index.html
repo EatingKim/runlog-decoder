@@ -439,6 +439,7 @@ details.raw summary { font-size: 0.78rem; }
 @property --fl { syntax: '<number>'; inherits: false; initial-value: 0; }
 .ec.flash { animation: ecflash 2.2s ease-out; }
 @keyframes ecflash { 0%, 35% { --fl: .32; border-color: #fff; } 100% { --fl: 0; border-color: var(--seam); } }
+.build-tag { text-align: center; color: var(--dust); font-size: 0.7rem; opacity: .6; margin: 24px 0 12px; }
 .ency-empty { color: var(--dust); font-size: 0.85rem; padding: 12px 0; }
 .rc-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
 .rc-share { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 0.78rem; }
@@ -632,6 +633,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
+  <p class="build-tag">해독기 판: 2026-11-16 23:58</p>
   </div>
 
   <section class="ency" id="v-ency" hidden aria-label="백과사전">
