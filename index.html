@@ -633,7 +633,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-17 00:07</p>
+  <p class="build-tag">해독기 판: 2026-11-17 08:57</p>
   </div>
 
   <section class="ency" id="v-ency" hidden aria-label="백과사전">
@@ -1113,7 +1113,37 @@ const RUNLOG_NAMES = {"version": 8, "module": ["", "부식 광선", "연발 사�
       for (const c of f.text) syms.push(VAL[c]);
     }
     let log = [];
-    const sp = stopAt < 0 ? splitSum(syms) : { data: syms, sum: null };
+    let sp = stopAt < 0 ? splitSum(syms) : { data: syms, sum: null };
+    /* 전체 확인값(V8)이 틀렸고 '그럴듯한 후보가 여럿'인 줄이 있으면, 후보 조합 중 전체 확인값이 맞는 것을 고름 (2026-11-16 2147×1366 스크린샷:
+     * 한 줄에서 후보 둘 중 틀린 쪽을 골라 끝까지 읽혔는데 확인값만 틀림). 조합은 512가지까지 */
+    if (sp.sum === false) {
+      const gl = fixed.filter(f => f.status === 'guess' && f.alts && f.alts.length);
+      let n = 1;
+      for (const f of gl) n *= f.alts.length + 1;
+      if (gl.length && n <= 512) {
+        const base = fixed.map(f => f.text);
+        for (let m = 1; m < n; m++) {
+          let k = m;
+          const pick = gl.map(f => { const c = k % (f.alts.length + 1); k = Math.floor(k / (f.alts.length + 1)); return c; });
+          const texts = base.slice();
+          gl.forEach((f, i) => { if (pick[i]) texts[fixed.indexOf(f)] = f.alts[pick[i] - 1].text; });
+          const s2 = [];
+          for (const t of texts) for (const c of t) s2.push(VAL[c]);
+          const sp2 = splitSum(s2);
+          if (sp2.sum === true) {
+            gl.forEach((f, i) => {
+              const t = texts[fixed.indexOf(f)];
+              const note = pick[i] ? f.alts[pick[i] - 1].note : (f.alts.find(a => a.text === t) || {}).note || f.note;
+              f.text = t; f.status = 'fixed'; f.note = note + ' (전체 확인값이 맞는 후보로 고름)'; f.alts = [];
+            });
+            syms.length = 0;
+            for (const t of texts) for (const c of t) syms.push(VAL[c]);
+            sp = sp2;
+            break;
+          }
+        }
+      }
+    }
     if (syms.length) log = decodeSyms(sp.data, names);
     if (stopAt > 0) { if (log.ev) log.ev.push({ type: 'stop', line: stopAt }); log.push('(' + stopAt + '번째 줄을 고치지 못해 그 앞까지만 해독함)'); }
     /* 이상한 기록이 처음 나온 줄 (쪽이 빠졌거나 순서가 바뀌었거나, 확인 글자로 못 잡은 인식 오류) */
@@ -1527,10 +1557,39 @@ const RUNLOG_NAMES = {"version": 8, "module": ["", "부식 광선", "연발 사�
       sure = ALPHA[chk(Array.from(parts[0], c => ALPHA.indexOf(c)))] === parts[1];
     }
     const conf = r.seq.map(q => q.alts && q.alts.length ? q.alts[0].delta : 99); //글자마다 자신감 (2순위 본과의 차이)
-    return { text: f.text, fixed: f.fixed, weak: f.weak, sure, line, cost: r.cost, conf };
+    return { text: f.text, fixed: f.fixed, weak: f.weak, sure, line, cost: r.cost, conf, cands: cands(r, f.text) };
   }
   /* 글자 본 여러 벌로 읽기 (2026-11-16, 화면 크기가 다른 스크린샷용 본을 따로 둠): 확인 글자가 맞는 결과가 있으면 그것.
    * 없으면 두 결과가 다른 자리의 글자를 섞어 보고, 확인 글자가 맞는 조합이 하나뿐이면 그것 (서로 다른 본이 서로 다른 글자를 틀리는 일이 많음) */
+  /* 확인 글자가 맞는 다른 읽기 후보 (2026-11-16): 헷갈리는 글자(2순위 본과 차이 ALT_MAX 미만)를 한두 개 바꿔 확인 글자가 맞는 것들, 차이 합이 작은 순.
+   * 줄 하나로는 어느 것이 맞는지 모르지만, 사이트가 V8 전체 확인값으로 여러 줄의 후보 조합 중 맞는 것을 고름 (page.html fixByTotal) */
+  function cands(r, text) {
+    const t = text.replace(/ /g, '');
+    if (!r.seq || r.seq.length !== t.length || t.length < 3) return [];
+    const opts = [];
+    r.seq.forEach((q, i) => { for (const a of q.alts || []) if (a.delta < ALT_MAX && ALPHA.indexOf(a.c) >= 0) opts.push({ i, c: a.c, d: a.delta }); });
+    opts.sort((a, b) => a.d - b.d);
+    opts.length = Math.min(opts.length, 40);
+    const out = [], ok = arr => ALPHA[chk(arr.slice(0, -1).map(x => ALPHA.indexOf(x)))] === arr[arr.length - 1];
+    const base = Array.from(t);
+    if (base.indexOf('?') < 0) {
+      for (const o of opts) { const c = base.slice(); c[o.i] = o.c; if (ok(c)) out.push({ t: c, d: o.d }); }
+      for (let a = 0; a < opts.length; a++) for (let b = a + 1; b < opts.length; b++) {
+        if (opts[a].i === opts[b].i) continue;
+        const c = base.slice(); c[opts[a].i] = opts[a].c; c[opts[b].i] = opts[b].c;
+        if (ok(c)) out.push({ t: c, d: opts[a].d + opts[b].d });
+      }
+      /* 세 글자 (2026-11-17, 2560 화면에서 한 줄에 세 글자 틀리고 확인 글자는 우연히 맞은 줄): 헷갈리는 정도가 큰 25개까지만 */
+      const o3 = opts.slice(0, 25);
+      for (let a = 0; a < o3.length; a++) for (let b = a + 1; b < o3.length; b++) for (let e = b + 1; e < o3.length; e++) {
+        if (o3[a].i === o3[b].i || o3[a].i === o3[e].i || o3[b].i === o3[e].i) continue;
+        const c = base.slice(); c[o3[a].i] = o3[a].c; c[o3[b].i] = o3[b].c; c[o3[e].i] = o3[e].c;
+        if (ok(c)) out.push({ t: c, d: o3[a].d + o3[b].d + o3[e].d + 3 });
+      }
+    }
+    out.sort((a, b) => a.d - b.d);
+    return out.slice(0, 20).map(o => o.t.slice(0, -1).join('') + ' ' + o.t[o.t.length - 1]);
+  }
   function readMulti(im, line, Ts) {
     const first = readOne(im, line, Ts[0]);
     if (first && first.sure) return first; //첫 본(기본 화면)으로 확인 글자까지 맞으면 다른 본은 읽지 않음 (판독 시간 절반)
@@ -1556,7 +1615,8 @@ const RUNLOG_NAMES = {"version": 8, "module": ["", "부식 광선", "연발 사�
             if (ALPHA[chk(body.map(x => ALPHA.indexOf(x)))] !== k) continue;
             if (score > bestScore) { bestScore = score; best = body.join('') + ' ' + k; }
           }
-          if (best) return Object.assign({}, A, { text: best, sure: true, fixed: best.replace(/ /g, '') === a ? A.fixed : 1, weak: [] });
+          const pool = [A.text, B.text].concat(A.cands || [], B.cands || []).filter(x => x !== best && /^\S+ \S$/.test(x));
+          if (best) return Object.assign({}, A, { text: best, sure: true, fixed: best.replace(/ /g, '') === a ? A.fixed : 1, weak: [], cands: [...new Set(pool)].slice(0, 12) });
         }
       }
     }
@@ -2621,6 +2681,45 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   const OCR = window.RunLogOcr, TPL = OCR.unpack(RUNLOG_OCR_TEMPLATES), TPLS = [TPL, OCR.unpack(RUNLOG_OCR_TEMPLATES2)];
   const drop = $('drop'), ocrSt = $('ocr-status');
   let busy = false;
+  /* V8 전체 확인값으로 헷갈린 줄 고르기 (2026-11-16): 판독기가 확인 글자까지 맞는 다른 후보를 준 줄들(cands)에서 후보를 바꿔 보며
+   * 전체 확인값이 맞고 끝까지 해독되는 조합을 찾음. 확인값은 글자마다 v·(2i+1)의 합이라 줄을 바꿀 때 바뀐 만큼만 다시 셈 */
+  function fixByTotal(rs, texts) {
+    const join = () => texts.join('\n');
+    const r0 = D.decodeText(join(), N);
+    if (r0.ok || !r0.lines.length || r0.lines.length !== texts.length) return;
+    const body = t => t.replace(/ /g, '').slice(0, -1);
+    const val = c => D.ALPHA.indexOf(c);
+    const flat = [];
+    texts.forEach(t => { for (const c of body(t)) flat.push(val(c)); });
+    if (flat.length < 3 || flat.some(v => v < 0)) return;
+    const n = flat.length - 2, want = flat[n] + flat[n + 1] * 32;
+    if ((flat[0] & 15) < 8) return; //V8부터 전체 확인값
+    const offs = [];
+    let o = 0;
+    texts.forEach(t => { offs.push(o); o += body(t).length; });
+    const part = (t, off) => { let s = 0; Array.from(body(t)).forEach((c, k) => { const i = off + k; if (i < n) s += val(c) * (2 * i + 1); }); return s; };
+    let base = 0;
+    for (let i = 0; i < n; i++) base += flat[i] * (2 * i + 1);
+    const lines = rs.map((r, li) => ({ li, opts: (r.sure && r0.lines[li].status === 'ok' ? [] : (r.cands || [])).filter(c => body(c).length === body(texts[li]).length) }))
+      .filter(x => x.opts.length && offs[x.li] + body(texts[x.li]).length <= n);
+    if (!lines.length) return;
+    lines.forEach(x => { x.cur = part(texts[x.li], offs[x.li]); x.d = x.opts.map(c => part(c, offs[x.li]) - x.cur); });
+    let total = 1;
+    for (const x of lines) total *= x.opts.length + 1;
+    if (total > 200000) { lines.sort((a, b) => a.opts.length - b.opts.length); while (lines.length && total > 200000) { const x = lines.pop(); total /= x.opts.length + 1; } }
+    let tries = 0;
+    const pick = new Array(lines.length).fill(0);
+    for (let m = 1; m < total && tries < 30; m++) {
+      let k = m, sum = base;
+      for (let j = 0; j < lines.length; j++) { const L = lines[j].opts.length + 1; pick[j] = k % L; k = Math.floor(k / L); if (pick[j]) sum += lines[j].d[pick[j] - 1]; }
+      if (((sum % 1024) + 1024) % 1024 !== want) continue;
+      tries++;
+      const t2 = texts.slice();
+      lines.forEach((x, j) => { if (pick[j]) t2[x.li] = x.opts[pick[j] - 1]; });
+      const r2 = D.decodeText(t2.join('\n'), N);
+      if (r2.sumOk && !r2.noEnd && !r2.problemLine && r2.stopAt < 0) { texts.splice(0, texts.length, ...t2); return; }
+    }
+  }
   async function toImageData(file, width) {
     const bmp = await createImageBitmap(file);
     const c = document.createElement('canvas');
@@ -2707,6 +2806,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
         moved = order;
       }
       for (const pg of pages) for (const r of pg.lines) texts.push(r.text);
+      if (texts.length) { ocrSt.textContent = '헷갈린 글자 맞추는 중'; await tick(); fixByTotal(pages.flatMap(pg => pg.lines), texts); }
       if (!texts.length) {
         ocrSt.textContent = '코드 줄을 찾지 못했습니다. 기록 보기 화면의 PC 스크린샷인지 확인하세요.';
       } else {
