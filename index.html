@@ -389,6 +389,13 @@ details.raw summary { font-size: 0.78rem; }
 .ency { padding-top: 14px; display: grid; gap: 10px; }
 .vers { padding-top: 14px; }
 .vers-h { margin: 0 0 4px; font-size: 1.1rem; }
+.vers-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.vers-tabs button { border: 1px solid var(--seam); background: transparent; color: var(--bone); padding: 5px 14px; font: inherit; font-size: 0.86rem; font-weight: 700; cursor: pointer; }
+.vers-tabs button b { font-weight: 400; font-size: 0.7rem; color: var(--dust); margin-left: 4px; }
+.vers-tabs button.now { border-color: var(--void); }
+.vers-tabs button.plan { border-style: dashed; color: var(--dust); }
+.vers-tabs button.on { background: var(--void); border-color: var(--void); color: #120d22; }
+.vers-tabs button.on b { color: #2a1f52; }
 .vers-sub { margin: 0 0 14px; color: var(--dust); font-size: 0.84rem; }
 .vc { --cut: 10px; position: relative; border: 1px solid var(--seam); background: var(--rock); padding: 14px 16px; margin-bottom: 12px;
   clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); }
@@ -661,12 +668,12 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-17 19:15</p>
+  <p class="build-tag">해독기 판: 2026-11-17 19:42</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
     <h2 class="vers-h">아카이브</h2>
-    <p class="vers-sub">상실의 동굴 판마다의 맵 파일과 바뀐 점. 기록 코드의 "맵 판" 번호로 어느 판에서 한 기록인지 알 수 있습니다.</p>
+    <p class="vers-sub">상실의 동굴 판마다의 맵 파일과 바뀐 점. 버전을 누르면 펼쳐집니다.</p>
     <div id="vers-list"></div>
   </section>
 
@@ -2484,21 +2491,31 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   /* 버전 보관소 (사용자 2026-11-17 "유즈맵 아카이브"): versions.json */
   function verRender() {
     const box = $('vers-list');
-    if (box.dataset.done) return;
-    box.dataset.done = '1';
     const V = (typeof RUNLOG_VERSIONS !== 'undefined' && RUNLOG_VERSIONS) || [];
-    const card = v => {
+    /* 위에 버전 서브 탭, 누르면 그 버전 내용이 펼쳐짐 (사용자 2026-11-17). 처음엔 현재 버전, 펼친 탭을 다시 누르면 접힘 */
+    const order = V.slice().sort((a, b) => parseFloat(a.ver) - parseFloat(b.ver));
+    if (verSel === undefined) verSel = (V.find(v => v.status === '현재') || order[order.length - 1] || {}).ver || null;
+    const tabs = '<div class="vers-tabs" role="tablist">' + order.map(v => '<button type="button" role="tab" data-ver="' + esc(v.ver) + '" class="' + (v.status === '예정' ? 'plan' : v.status === '현재' ? 'now' : '') +
+      (verSel === v.ver ? ' on' : '') + '" aria-selected="' + (verSel === v.ver) + '">' + esc(v.ver) + (v.status === '현재' ? ' <b>현재</b>' : v.status === '예정' ? ' <b>예정</b>' : '') + '</button>').join('') + '</div>';
+    const v = V.find(x => x.ver === verSel);
+    let body = '';
+    if (v) {
       const plan = v.status === '예정', now = v.status === '현재';
-      const meta = [v.map ? '맵 판 ' + v.map : '', v.date ? v.date : (plan ? '' : '배포일 미정')].filter(Boolean).join(' · ');
+      const meta = [v.map ? '맵 판 ' + v.map : '', v.date ? v.date : (plan ? '일정은 바뀔 수 있습니다' : '배포일 미정')].filter(Boolean).join(' · ');
       const act = plan ? '' : '<div class="vc-act">' + (v.download ? '<a class="dl" href="' + esc(v.download) + '" rel="noopener">맵 다운로드</a>' : '<span>다운로드 준비 중</span>') +
         (v.post ? '<a href="' + esc(v.post) + '" target="_blank" rel="noopener">카페 글</a>' : '') + '</div>';
       const notes = Object.keys(v.notes || {}).map(k => (plan ? '' : '<h4>' + esc(k) + '</h4>') + '<ul>' + v.notes[k].map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>').join('');
-      return '<article class="vc' + (now ? ' now' : '') + (plan ? ' plan' : '') + '"><div class="vc-top"><span class="vc-ver">' + esc(v.ver) + '</span><span class="vc-title">' + esc(v.title || '') + '</span>' +
+      body = '<article class="vc' + (now ? ' now' : '') + (plan ? ' plan' : '') + '"><div class="vc-top"><span class="vc-ver">' + esc(v.ver) + '</span><span class="vc-title">' + esc(v.title || '') + '</span>' +
         '<span class="vc-tag">' + esc(v.status || '') + '</span>' + (meta ? '<span class="vc-meta">' + esc(meta) + '</span>' : '') + '</div>' + act + notes + '</article>';
-    };
-    const plans = V.filter(v => v.status === '예정').reverse(), rest = V.filter(v => v.status !== '예정');
-    box.innerHTML = rest.map(card).join('') + (plans.length ? '<h2 class="vers-h" style="margin-top:22px">앞으로의 업데이트</h2><p class="vers-sub">일정은 개발 상황에 따라 바뀔 수 있습니다.</p>' + plans.map(card).join('') : '');
+    }
+    box.innerHTML = tabs + body;
   }
+  let verSel;
+  $('vers-list').addEventListener('click', e => {
+    const b = e.target.closest('[data-ver]'); if (!b) return;
+    verSel = verSel === b.dataset.ver ? null : b.dataset.ver;
+    verRender();
+  });
   function applyHash() {
     if (location.hash === '#ver') { setView('ver'); scrollTo(0, 0); return; }
     const m = /^#ency(?:\/(\w+))?(?:\/(\d+))?/.exec(location.hash);
