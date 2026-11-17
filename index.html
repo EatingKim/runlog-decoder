@@ -640,7 +640,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-17 13:24</p>
+  <p class="build-tag">해독기 판: 2026-11-17 13:57</p>
   </div>
 
   <section class="ency" id="v-ency" hidden aria-label="백과사전">
@@ -2707,24 +2707,67 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     const part = (t, off) => { let s = 0; Array.from(body(t)).forEach((c, k) => { const i = off + k; if (i < n) s += val(c) * (2 * i + 1); }); return s; };
     let base = 0;
     for (let i = 0; i < n; i++) base += flat[i] * (2 * i + 1);
-    const lines = rs.map((r, li) => ({ li, opts: (r.sure && r0.lines[li].status === 'ok' ? [] : (r.cands || [])).filter(c => body(c).length === body(texts[li]).length) }))
-      .filter(x => x.opts.length && offs[x.li] + body(texts[x.li]).length <= n);
-    if (!lines.length) return;
-    lines.forEach(x => { x.cur = part(texts[x.li], offs[x.li]); x.d = x.opts.map(c => part(c, offs[x.li]) - x.cur); });
-    let total = 1;
-    for (const x of lines) total *= x.opts.length + 1;
-    if (total > 200000) { lines.sort((a, b) => a.opts.length - b.opts.length); while (lines.length && total > 200000) { const x = lines.pop(); total /= x.opts.length + 1; } }
-    let tries = 0;
-    const pick = new Array(lines.length).fill(0);
-    for (let m = 1; m < total && tries < 30; m++) {
-      let k = m, sum = base;
-      for (let j = 0; j < lines.length; j++) { const L = lines[j].opts.length + 1; pick[j] = k % L; k = Math.floor(k / L); if (pick[j]) sum += lines[j].d[pick[j] - 1]; }
-      if (((sum % 1024) + 1024) % 1024 !== want) continue;
-      tries++;
+    /* 확인 글자가 틀린 줄인데 후보가 없으면 (판독기·AI 둘 다 못 맞춤) 비슷한 모양 글자로 한두 개 바꿔 확인 글자가 맞는 후보를 만듦 */
+    const LOOK = ['2Z', '35S8B', '68G', '0', 'CDQ', 'UVW', 'MNH', 'KX', 'EFL', 'PR', '7TY', '9Q', 'A4'];
+    const ALT = {};
+    for (const g of LOOK) for (const c of g) ALT[c] = (ALT[c] || '') + g.replace(c, '');
+    const validT = t => { const b = body(t), k = t.replace(/ /g, '').slice(-1); return D.ALPHA[D.check(Array.from(b, val))] === k; };
+    rs.forEach((r, li) => {
+      if (validT(texts[li]) || (r.cands || []).length) return;
+      const a = Array.from(texts[li].replace(/ /g, '')), out = [];
+      const ok = c => D.ALPHA[D.check(c.slice(0, -1).map(val))] === c[c.length - 1];
+      const pos = [];
+      a.forEach((ch, i) => { for (const x of ALT[ch] || '') if (val(x) >= 0) pos.push([i, x]); });
+      for (const [i, x] of pos) { const c = a.slice(); c[i] = x; if (ok(c)) out.push(c); }
+      for (let p = 0; p < pos.length && out.length < 30; p++) for (let q = p + 1; q < pos.length && out.length < 30; q++) {
+        if (pos[p][0] === pos[q][0]) continue;
+        const c = a.slice(); c[pos[p][0]] = pos[p][1]; c[pos[q][0]] = pos[q][1]; if (ok(c)) out.push(c);
+      }
+      r.cands = out.map(c => c.slice(0, -1).join('') + ' ' + c[c.length - 1]);
+    });
+    /* 후보 바꾸기를 1~3줄까지: 바뀐 만큼의 확인값 차이(d)를 모아, 합이 목표와 맞는 조합만 끝까지 해독해 봄 (조합 폭발 없이 쌍은 표로 찾음) */
+    const opts = [];
+    rs.forEach((r, li) => {
+      if (offs[li] + body(texts[li]).length > n) return; //맨 끝(확인값 두 글자)이 걸친 줄은 뺌
+      if (r.sure && r0.lines[li] && r0.lines[li].status === 'ok' && !(r.cands || []).length) return;
+      (r.cands || []).forEach((c, rank) => {
+        if (body(c).length !== body(texts[li]).length || c === texts[li]) return;
+        opts.push({ li, c, rank, d: ((part(c, offs[li]) - part(texts[li], offs[li])) % 1024 + 1024) % 1024 });
+      });
+    });
+    if (!opts.length) return;
+    const T = ((want - base) % 1024 + 1024) % 1024;
+    const tryCombo = combo => {
       const t2 = texts.slice();
-      lines.forEach((x, j) => { if (pick[j]) t2[x.li] = x.opts[pick[j] - 1]; });
+      for (const o of combo) t2[o.li] = o.c;
       const r2 = D.decodeText(t2.join('\n'), N);
-      if (r2.sumOk && !r2.noEnd && !r2.problemLine && r2.stopAt < 0) { texts.splice(0, texts.length, ...t2); return; }
+      if (r2.sumOk && !r2.noEnd && !r2.problemLine && r2.stopAt < 0) { texts.splice(0, texts.length, ...t2); return true; }
+      return false;
+    };
+    let tries = 0;
+    const MAXTRY = 60;
+    if (T === 0 && tryCombo([])) return;
+    for (const o of opts) if (o.d === T) { if (tryCombo([o])) return; if (++tries > MAXTRY) return; }
+    const byD = new Map();
+    opts.forEach((o, k) => { if (!byD.has(o.d)) byD.set(o.d, []); byD.get(o.d).push(k); });
+    const combos2 = [];
+    opts.forEach((a, ka) => { for (const kb of byD.get((T - a.d + 1024) % 1024) || []) if (kb > ka && opts[kb].li !== a.li) combos2.push([a, opts[kb]]); });
+    combos2.sort((x, y) => x[0].rank + x[1].rank - y[0].rank - y[1].rank);
+    for (const c of combos2) { if (tryCombo(c)) return; if (++tries > MAXTRY) return; }
+    const pairs = new Map(); //두 줄 바꾸기의 합 → 조합
+    for (let a = 0; a < opts.length && pairs.size < 400000; a++) for (let b = a + 1; b < opts.length; b++) {
+      if (opts[a].li === opts[b].li) continue;
+      const sd = (opts[a].d + opts[b].d) % 1024;
+      if (!pairs.has(sd)) pairs.set(sd, []);
+      const L = pairs.get(sd);
+      if (L.length < 40) L.push([a, b]);
+    }
+    for (let k = 0; k < opts.length; k++) {
+      for (const [a, b] of pairs.get((T - opts[k].d + 1024) % 1024) || []) {
+        if (a === k || b === k || opts[a].li === opts[k].li || opts[b].li === opts[k].li || a < k) continue;
+        if (tryCombo([opts[k], opts[a], opts[b]])) return;
+        if (++tries > MAXTRY * 3) return;
+      }
     }
   }
   async function toImageData(file, width) {
@@ -2803,7 +2846,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
           const a = same ? al[li] : null;
           const useA = a && valid(a) && !(r.sure && valid(r.text));
           texts.push(useA ? a : r.text);
-          rs.push({ sure: false, cands: [useA ? r.text : a].filter(x => x && valid(x)) });
+          rs.push({ sure: false, cands: [...new Set([useA ? r.text : a].concat(r.cands || []).filter(x => x && valid(x) && x !== (useA ? a : r.text)))] }); //AI·판독기 중 안 쓴 쪽 + 판독기의 다른 후보
         });
       });
       let best = texts.slice();
