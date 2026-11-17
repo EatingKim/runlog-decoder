@@ -256,6 +256,9 @@ details.raw pre { background: var(--rock); border: 1px solid var(--seam); paddin
 .hero { padding-block: 18px 6px; }
 .hero:empty { display: none; }
 .ocr-status:empty { display: none; }
+.ai-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.ai-row[hidden] { display: none; }
+.ai-note { font-size: 0.74rem; color: var(--dust); }
 .runcard { --tone: var(--dust); border: 1px solid color-mix(in srgb, var(--tone) 45%, var(--seam)); border-radius: 10px; padding: 18px 22px 16px;
   background: linear-gradient(120deg, color-mix(in srgb, var(--tone) 16%, var(--rock)) 0%, var(--rock) 55%); display: grid; gap: 14px; }
 .runcard.lose { --tone: var(--boss); } .runcard.win { --tone: var(--g2); } .runcard.cut { --tone: var(--warn); }
@@ -613,6 +616,10 @@ html, body {
     </div>
     <div class="thumbs" id="thumbs"></div>
     <span class="ocr-status" id="ocr-status" role="status"></span>
+    <div class="ai-row" id="ai-row" hidden>
+      <button type="button" id="btn-ai">AI로 다시 읽기</button>
+      <span class="ai-note">사진에서 코드 부분만 잘라 AI(Claude) 서비스로 보내 다시 읽습니다. 하루 사용 횟수가 정해져 있습니다.</span>
+    </div>
   </section>
 
   <div class="code-in">
@@ -633,7 +640,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-17 08:57</p>
+  <p class="build-tag">해독기 판: 2026-11-17 12:22</p>
   </div>
 
   <section class="ency" id="v-ency" hidden aria-label="백과사전">
@@ -2755,6 +2762,69 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     return order.every((v, i) => v === i) ? null : order;
   }
   const OCR_LINE = 72;
+  /* AI로 다시 읽기 (2026-11-17 사용자 "api로 따는거"): 판독기로 해독이 막힐 때만 버튼이 보임. 쪽마다 코드 줄 부분만 잘라(JPEG) 시트 스크립트로 보내고,
+   * 스크립트가 Claude API(키는 스크립트 속성에만)로 읽어 줄 글을 돌려줌. 받은 줄은 확인 글자·전체 확인값으로 검증한 뒤에만 씀 */
+  let aiPages = null;
+  async function cropPage(pg) {
+    const ls = pg.lines.filter(r => r.line);
+    if (!ls.length) return null;
+    const { canvas } = await toImageData(pg.file, pg.width || 0);
+    const y0 = Math.max(0, Math.min(...ls.map(r => r.line.top)) - 8), y1 = Math.min(canvas.height, Math.max(...ls.map(r => r.line.bottom)) + 8);
+    const x1 = Math.min(canvas.width, Math.max(...ls.map(r => r.line.x1)) + 12);
+    const sc = Math.min(1, 1568 / x1);
+    const c = document.createElement('canvas');
+    c.width = Math.round(x1 * sc); c.height = Math.round((y1 - y0) * sc);
+    const g = c.getContext('2d');
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(canvas, 0, y0, x1, y1 - y0, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.92).split(',')[1];
+  }
+  $('btn-ai').addEventListener('click', async () => {
+    if (!aiPages || busy) return;
+    busy = true;
+    const btn = $('btn-ai');
+    btn.disabled = true;
+    try {
+      ocrSt.textContent = 'AI로 보낼 사진을 준비하는 중';
+      const imgs = [];
+      for (const pg of aiPages) imgs.push(await cropPage(pg));
+      ocrSt.textContent = 'AI가 사진을 읽는 중 (수십 초 걸릴 수 있음)';
+      const r = await fetch(SAVE_URL, { method: 'POST', body: JSON.stringify({ action: 'ocr', pages: imgs.filter(Boolean) }) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || '읽지 못했습니다');
+      /* 쪽마다 같은 줄 수면 줄끼리 맞춰, 확인 글자가 맞는 쪽을 먼저 쓰고 다른 쪽은 후보로 (전체 확인값으로 고름) */
+      const valid = t => { const m = /^([2-9A-HJ-NP-Z]+) ([2-9A-HJ-NP-Z])$/.exec(t); return !!m && D.ALPHA[D.check(Array.from(m[1], c => D.ALPHA.indexOf(c)))] === m[2]; };
+      const texts = [], rs = [];
+      const ai = j.pages || [];
+      aiPages.forEach((pg, pi) => {
+        const al = (ai[pi] || []);
+        const same = al.length === pg.lines.length;
+        pg.lines.forEach((r, li) => {
+          const a = same ? al[li] : null;
+          const useA = a && valid(a) && !(r.sure && valid(r.text));
+          texts.push(useA ? a : r.text);
+          rs.push({ sure: false, cands: [useA ? r.text : a].filter(x => x && valid(x)) });
+        });
+      });
+      let best = texts.slice();
+      fixByTotal(rs, best);
+      let res = D.decodeText(best.join('\n'), N);
+      if (!res.ok) { //줄 수가 달랐던 쪽이 있으면 AI 글만으로도 해 봄
+        const only = [].concat(...ai);
+        const r2 = D.decodeText(only.join('\n'), N);
+        if (r2.ok) { best = only; res = r2; }
+      }
+      ocrSt.textContent = res.ok ? 'AI로 다시 읽어 해독했습니다 (오늘 남은 횟수 ' + j.left + ')' : 'AI로 다시 읽었지만 아직 맞지 않는 곳이 있습니다. 아래 코드 확인 결과를 보세요 (오늘 남은 횟수 ' + j.left + ')';
+      inputVia = '사진+AI';
+      setText(best.join('\n'));
+      toResult();
+      $('ai-row').hidden = res.ok;
+    } catch (e) {
+      ocrSt.textContent = 'AI로 읽지 못했습니다: ' + e.message;
+    }
+    btn.disabled = false;
+    busy = false;
+  });
   async function readFiles(files) {
     files = [...files].filter(f => /^image\//.test(f.type));
     if (!files.length || busy) return;
@@ -2783,7 +2853,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
            * 기록의 마지막 줄은 짧을 수 있지만 쪽의 맨 끝에 오므로 남음 */
           const longAt = ls.findIndex(r => r.text.replace(/ /g, '').length >= 60);
           if (longAt > 0) ls.splice(0, longAt);
-          return { ls, sure: ls.filter(r => r.sure).length };
+          return { ls, sure: ls.filter(r => r.sure).length, width };
         };
         let best = await readAt(0, '');
         const bmpW = (await createImageBitmap(files[fi])).width;
@@ -2793,7 +2863,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
           const alt = await readAt(w, '다시 ');
           if (alt.sure > best.sure) best = alt;
         }
-        const page = { fi, lines: best.ls };
+        const page = { fi, file: files[fi], width: best.width, lines: best.ls };
         page.lines.forEach(r => { if (r.fixed < 0) bad++; });
         pages.push(page);
       }
@@ -2816,6 +2886,8 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
         inputVia = '사진';
         setText(texts.join('\n'));
         toResult();
+        aiPages = pages.slice();
+        $('ai-row').hidden = !CAN_SAVE || D.decodeText(texts.join('\n'), N).ok;
       }
     } catch (e) {
       ocrSt.textContent = '사진을 읽지 못했습니다: ' + e.message;
