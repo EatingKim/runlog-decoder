@@ -640,7 +640,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-17 12:22</p>
+  <p class="build-tag">해독기 판: 2026-11-17 12:28</p>
   </div>
 
   <section class="ency" id="v-ency" hidden aria-label="백과사전">
@@ -2766,9 +2766,17 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
    * 스크립트가 Claude API(키는 스크립트 속성에만)로 읽어 줄 글을 돌려줌. 받은 줄은 확인 글자·전체 확인값으로 검증한 뒤에만 씀 */
   let aiPages = null;
   async function cropPage(pg) {
-    const ls = pg.lines.filter(r => r.line);
-    if (!ls.length) return null;
+    const ls = pg.lines.filter(r => r.line && r.text.replace(/ /g, '').length >= 20);
     const { canvas } = await toImageData(pg.file, pg.width || 0);
+    if (ls.length < 3) { //코드 줄을 거의 못 찾음 (휴대폰으로 찍은 화면 등): 사진 전체를 긴 변 1568로 줄여 보냄
+      const sc = Math.min(1, 1568 / Math.max(canvas.width, canvas.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(canvas.width * sc); c.height = Math.round(canvas.height * sc);
+      const g = c.getContext('2d');
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(canvas, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.9).split(',')[1];
+    }
     const y0 = Math.max(0, Math.min(...ls.map(r => r.line.top)) - 8), y1 = Math.min(canvas.height, Math.max(...ls.map(r => r.line.bottom)) + 8);
     const x1 = Math.min(canvas.width, Math.max(...ls.map(r => r.line.x1)) + 12);
     const sc = Math.min(1, 1568 / x1);
@@ -2807,7 +2815,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
         });
       });
       let best = texts.slice();
-      fixByTotal(rs, best);
+      if (best.length) fixByTotal(rs, best);
       let res = D.decodeText(best.join('\n'), N);
       if (!res.ok) { //줄 수가 달랐던 쪽이 있으면 AI 글만으로도 해 봄
         const only = [].concat(...ai);
@@ -2878,7 +2886,9 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       for (const pg of pages) for (const r of pg.lines) texts.push(r.text);
       if (texts.length) { ocrSt.textContent = '헷갈린 글자 맞추는 중'; await tick(); fixByTotal(pages.flatMap(pg => pg.lines), texts); }
       if (!texts.length) {
-        ocrSt.textContent = '코드 줄을 찾지 못했습니다. 기록 보기 화면의 PC 스크린샷인지 확인하세요.';
+        ocrSt.textContent = '코드 줄을 찾지 못했습니다. 기록 보기 화면의 PC 스크린샷인지 확인하세요.' + (CAN_SAVE ? ' 휴대폰으로 찍은 사진이면 AI로 다시 읽기를 눌러 보세요.' : '');
+        aiPages = pages.slice();
+        $('ai-row').hidden = !CAN_SAVE;
       } else {
         ocrSt.textContent = texts.length + '줄 읽음' +
           (moved !== -1 ? ' · 사진 순서를 기록 내용에 맞춰 바꿨습니다 (올린 순서 ' + moved.map(i => i + 1).join('→') + ')' : '') +
