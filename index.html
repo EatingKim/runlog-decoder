@@ -640,7 +640,7 @@ html, body {
         <input type="checkbox" id="agree">
         <span class="agree-t">기록 저장에 동의 <b class="agree-state" id="agree-state">꺼짐</b></span>
       </label>
-      <p class="agree-why">해독한 런 기록(시드, 지나간 층, 고른 모듈, 덱, 유물 등)을 게임 밸런스 개선을 위해 제작자의 구글 시트에 저장합니다. 이름이나 계정 같은 개인 정보는 저장하지 않습니다.</p>
+      <p class="agree-why">해독한 런 기록(시드, 지나간 층, 고른 모듈, 덱, 유물 등)을 게임 밸런스 개선을 위해 제작자의 구글 시트에 저장합니다. 이름이나 계정 같은 개인 정보는 저장하지 않습니다. 사진 판독이 실패하면 AI(Claude)로 다시 읽고, 그래도 실패하면 판독기 개선을 위해 사진의 코드 부분만 잘라 30일 동안 보관합니다.</p>
       <span class="save-st" id="save-st" role="status"></span>
     </div>
     <div class="thumbs" id="thumbs"></div>
@@ -669,7 +669,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-19 21:36</p>
+  <p class="build-tag">해독기 판: 2026-11-19 22:24</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2153,13 +2153,18 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     if (!CAN_SAVE || !$('agree').checked) return;
     const head = res.ev.find(e => e.type === 'head');
     const code = src.value.toUpperCase().replace(/[^0-9A-Z?\s-]/g, '').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim().slice(0, 7000);
-    if (!code) return;
+    if (!code || code.replace(/\s/g, '').length < 20) return; //시드 숫자만 넣은 것 같은 짧은 글은 기록하지 않음
+    if (aiPending) return; //곧 AI로 다시 읽음 → 그 결과로 판단
     const fp = runId(head ? head.seed : 0, code);
     if (errSent[fp]) return;
     errSent[fp] = 1;
     const bad = res.lines.filter(l => l.status !== 'ok').slice(0, 30).map(l => l.n + '번째 줄: ' + (l.status === 'fixed' ? '고침' : l.status === 'guess' ? '추정' : '못 고침') + (l.note ? ' · ' + l.note : '')).join('\n').slice(0, 3000);
     const body = { action: 'error', fp, reason, via: inputVia, ver: head ? head.ver : '', seed: head ? head.seed : '', mapVer: head && head.ver >= 8 ? head.mapVer : '',
       lines: res.lines.length, bad, code };
+    /* 사진으로 읽은 기록이면 코드 부분만 자른 사진도 (판독기 개선용, 사용자 2026-11-19). 시트가 구글 드라이브 폴더에 저장하고 30일 뒤 지움 */
+    if (/사진/.test(inputVia) && aiPages) {
+      try { body.imgs = (await Promise.all(aiPages.slice(0, 8).map(cropPage))).filter(Boolean); } catch (e) { }
+    }
     try { await fetch(SAVE_URL, { method: 'POST', body: JSON.stringify(body) }); } catch (e) { delete errSent[fp]; }
   }
   function encName(id) { //편성 이름 "어둑술사 + 악성좀비×3"의 적 이름마다 백과사전 적 카드로
@@ -2876,7 +2881,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   const OCR_LINE = 72;
   /* AI로 다시 읽기 (2026-11-17 사용자 "api로 따는거"): 판독기로 해독이 막힐 때만 버튼이 보임. 쪽마다 코드 줄 부분만 잘라(JPEG) 시트 스크립트로 보내고,
    * 스크립트가 Claude API(키는 스크립트 속성에만)로 읽어 줄 글을 돌려줌. 받은 줄은 확인 글자·전체 확인값으로 검증한 뒤에만 씀 */
-  let aiPages = null;
+  let aiPages = null, aiPending = false;
   /* 결과 화면이 열리면 사진 칸이 접혀 버튼이 안 보이므로, 결과 맨 위에도 같은 버튼 (사용자 2026-11-17) */
   function aiBanner() {
     const h = $('hero');
@@ -2938,11 +2943,13 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       ocrSt.textContent = res.ok ? 'AI로 다시 읽어 해독했습니다 (오늘 남은 횟수 ' + j.left + ')' : 'AI로 다시 읽었지만 아직 맞지 않는 곳이 있습니다. 아래 코드 확인 결과를 보세요 (오늘 남은 횟수 ' + j.left + ')';
       if (j.id) fetch(SAVE_URL, { method: 'POST', body: JSON.stringify({ action: 'aiok', id: j.id, ok: !!res.ok }) }).catch(() => {}); //AI 사용 탭에 결과 (해독 성공/실패)
       inputVia = '사진+AI';
+      aiPending = false;
       setText(best.join('\n'));
       toResult();
       $('ai-row').hidden = res.ok;
     } catch (e) {
       ocrSt.textContent = 'AI로 읽지 못했습니다: ' + e.message;
+      if (aiPending) { aiPending = false; render(); } //AI가 안 되면 처음 판독 결과로 오류를 남김
     }
     btn.disabled = false;
     busy = false;
@@ -3007,6 +3014,12 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
           (moved !== -1 ? ' · 사진 순서를 기록 내용에 맞춰 바꿨습니다 (올린 순서 ' + moved.map(i => i + 1).join('→') + ')' : '') +
           (bad ? ' · ' + bad + '줄은 확인 글자가 맞지 않습니다. 아래 코드 확인 결과를 보세요' : '');
         inputVia = '사진';
+        { /* 곧 AI가 자동으로 다시 읽을 기록이면 처음 판독 결과로는 오류를 남기지 않음 */
+          const rr = D.decodeText(texts.join('\n'), N);
+          const lf = texts[texts.length - 1].replace(/ /g, '').length - 1 >= D.LINE_SYMS;
+          const ph = pages.some(pg => pg.lines.filter(r => r.text.replace(/ /g, '').length >= 20).length < 3);
+          aiPending = CAN_SAVE && $('agree').checked && !rr.ok && !ph && !(rr.noEnd && lf);
+        }
         setText(texts.join('\n'));
         toResult();
         aiPages = pages.slice();
