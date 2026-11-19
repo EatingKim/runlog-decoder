@@ -420,6 +420,11 @@ details.raw summary { font-size: 0.78rem; }
 details.vd { border-top: 1px solid var(--seam); }
 details.vd summary { cursor: pointer; padding: 8px 2px; font-size: 0.88rem; font-weight: 700; list-style-position: inside; }
 details.vd summary b { font-weight: 400; color: var(--dust); font-size: 0.76rem; margin-left: 4px; }
+.vd-tags { display: inline-flex; gap: 4px; margin-left: 10px; vertical-align: 1px; }
+.vd-tags .vt { font-weight: 400; }
+.vi-s { border-left-color: color-mix(in srgb, var(--void) 40%, var(--seam)); }
+.vi-s > p.vl-txt { color: var(--bone); }
+.ab { display: inline-block; font-size: 0.74rem; font-weight: 700; padding: 0 6px; margin-right: 6px; border: 1px solid var(--seam); color: #e8c35a; }
 details.vd[open] summary { color: var(--void); }
 details.vd > p { margin: 0 0 8px 14px; font-size: 0.82rem; color: var(--dust); }
 .vi { margin: 0 0 10px 14px; padding-left: 10px; border-left: 2px solid var(--seam); }
@@ -698,7 +703,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-20 01:45</p>
+  <p class="build-tag">해독기 판: 2026-11-20 01:54</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2526,6 +2531,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     hidePop();
   }
   /* 버전 보관소 (사용자 2026-11-17 "유즈맵 아카이브"): versions.json */
+  const richArrowS = t => fmtDesc(t.replace(/([^\s,(·]+)\s*→\s*([^\s,·)]+)/g, '\u0001$1\u0002 → \u0003$2\u0004')).replace(/\u0001/g, '<mark class="d-old">').replace(/\u0003/g, '<mark class="d-new">').replace(/[\u0002\u0004]/g, '</mark>');
   function verRender() {
     const box = $('vers-list');
     const V = (typeof RUNLOG_VERSIONS !== 'undefined' && RUNLOG_VERSIONS) || [];
@@ -2542,7 +2548,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       const meta = [v.map ? '맵 판 ' + v.map : '', v.date ? v.date : (plan ? '일정은 바뀔 수 있습니다' : '배포일 미정')].filter(Boolean).join(' · ');
       const act = plan ? '' : '<div class="vc-act">' + (v.download ? '<a class="dl" href="' + esc(v.download) + '" rel="noopener">맵 다운로드</a>' : '<span>다운로드 준비 중</span>') +
         (v.post ? '<a href="' + esc(v.post) + '" target="_blank" rel="noopener">카페 글</a>' : '') + '</div>';
-      const notes = Object.keys(v.notes || {}).map(k => (plan ? '' : '<h4>' + esc(k) + '</h4>') + '<ul>' + v.notes[k].map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>').join('');
+      const notes = Object.keys(v.notes || {}).map(k => (plan ? '' : '<h4>' + esc(k) + '</h4>') + '<ul>' + v.notes[k].map(x => '<li>' + richArrowS(x) + '</li>').join('') + '</ul>').join('');
       /* 자세한 변경점: 패치노트 단락마다 열고 닫기 (사용자 2026-11-20). 모듈·유물·적 이름은 백과사전으로 */
       const encyOf = (title, name) => {
         const nm0 = name.replace(/\s*\(.*\)\s*$/, '').trim();
@@ -2581,15 +2587,24 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
         return lines.map((t, k) => {
           if (k === oi) return '<p class="vl-old"><span class="vl-tag">이전</span>' + (mo !== null ? po + rich(mo, 'd-old') : fmtDesc(body(t))) + '</p>';
           if (k === ni) return '<p class="vl-new"><span class="vl-tag">' + (/^이제/.test(t) ? '이제' : '변경') + '</span>' + (mn !== null ? pn + rich(mn, 'd-new') : fmtDesc(body(t))) + '</p>';
-          return '<p class="' + (/^\(/.test(t) ? 'vl-dim' : 'vl-txt') + '">' + fmtDesc(t) + '</p>';
+          return lineHtml(t);
         }).join('');
       };
-      const lineHtml = t => '<p class="' + (/^\(/.test(t) ? 'vl-dim' : 'vl-txt') + '">' + fmtDesc(t) + '</p>';
+      /* "24초 → 12초", "6개에서 8개로"처럼 한 줄 안의 수치 변화: 앞은 빨강 취소선, 뒤는 초록 (사용자 2026-11-20 "다른 곳도") */
+      const arrows = t => t.replace(/([^\s,(]+(?:\([^)]*\))?)\s*→\s*([^\s,]+(?:\([^)]*\))?)/g, '\u0001$1\u0002 → \u0003$2\u0004')
+        .replace(/(\d[\d.]*[^\s에]*)에서 (\d[\d.]*[^\s으로]*)(으로|로)/g, '\u0001$1\u0002에서 \u0003$2\u0004$3');
+      const richArrow = t => fmtDesc(arrows(t)).replace(/\u0001/g, '<mark class="d-old">').replace(/\u0003/g, '<mark class="d-new">').replace(/[\u0002\u0004]/g, '</mark>');
+      const abil = h => h.replace(/^·\s*([^:]{1,24}):/, '<span class="ab">$1</span>'); //"· 문단속: …" 능력 이름 딱지
+      const lineHtml = t => '<p class="' + (/^\(/.test(t) ? 'vl-dim' : 'vl-txt') + '">' + abil(richArrow(t)) + '</p>';
       const detail = (v.detail || []).length ? '<div class="vd-head"><h4>자세한 변경점</h4><button type="button" data-vd-all>모두 펼치기</button></div>' +
-        v.detail.map(sec => '<details class="vd"><summary>' + esc(sec.title) + (sec.items.length ? ' <b>' + sec.items.length + '</b>' : '') + '</summary>' +
+        v.detail.map(sec => { const tc = {}; sec.items.forEach(it => { if (it.tag) tc[it.tag] = (tc[it.tag] || 0) + 1; });
+          const tags = ['상향', '하향', '변경', '교체', '신규', '고침'].filter(t => tc[t]).map(t => '<span class="vt vt-' + t + '">' + t + ' ' + tc[t] + '</span>').join('');
+          return '<details class="vd"><summary>' + esc(sec.title) + (sec.items.length ? ' <b>' + sec.items.length + '</b>' : '') + (tags ? '<span class="vd-tags">' + tags + '</span>' : '') + '</summary>' +
           sec.text.map(lineHtml).join('') +
-          sec.items.map(it => { const en = encyOf(sec.title, it.name); return '<div class="vi"><div class="vi-h">' + (en ? '<a class="vi-n" href="#ency/' + en + '" data-ency="' + en + '">' + esc(it.name) + '</a>' : '<span class="vi-n">' + esc(it.name) + '</span>') +
-            (it.tag ? '<span class="vt vt-' + esc(it.tag) + '">' + esc(it.tag) + '</span>' : '') + '</div>' + itemLines(it.lines) + '</div>'; }).join('') + '</details>').join('') : '';
+          sec.items.map(it => { const en = encyOf(sec.title, it.name);
+            if (!it.tag && it.name.length > 24) return '<div class="vi vi-s"><p class="vl-txt">' + richArrow(it.name) + '</p>' + itemLines(it.lines) + '</div>'; //시스템 같은 문장 항목
+            return '<div class="vi"><div class="vi-h">' + (en ? '<a class="vi-n" href="#ency/' + en + '" data-ency="' + en + '">' + esc(it.name) + '</a>' : '<span class="vi-n">' + esc(it.name) + '</span>') +
+            (it.tag ? '<span class="vt vt-' + esc(it.tag) + '">' + esc(it.tag) + '</span>' : '') + '</div>' + itemLines(it.lines) + '</div>'; }).join('') + '</details>'; }).join('') : '';
       body = '<article class="vc' + (now ? ' now' : '') + (plan ? ' plan' : '') + '"><div class="vc-top"><span class="vc-ver">' + esc(v.ver) + '</span><span class="vc-title">' + esc(v.title || '') + '</span>' +
         '<span class="vc-tag">' + esc(v.status || '') + '</span>' + (meta ? '<span class="vc-meta">' + esc(meta) + '</span>' : '') + '</div>' + act + notes + detail + '</article>';
     }
