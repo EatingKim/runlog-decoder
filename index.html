@@ -420,6 +420,13 @@ details.raw summary { font-size: 0.78rem; }
 details.vd { border-top: 1px solid var(--seam); }
 details.vd summary { cursor: pointer; padding: 8px 2px; font-size: 0.88rem; font-weight: 700; list-style-position: inside; }
 details.vd summary b { font-weight: 400; color: var(--dust); font-size: 0.76rem; margin-left: 4px; }
+.ency-sort { display: inline-flex; align-items: center; gap: 4px; font-size: 0.76rem; }
+.ency-sort .dim { color: var(--dust); margin-right: 2px; }
+.ency-sort button { border: 1px solid var(--seam); background: transparent; color: var(--dust); padding: 2px 9px; font: inherit; font-size: 0.76rem; cursor: pointer; }
+.ency-sort button.on { border-color: var(--void); color: var(--bone); }
+.enc-line { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; font-size: 0.74rem; }
+.enc-line span:not(.dim) { border: 1px solid var(--seam); padding: 0 6px; color: color-mix(in srgb, var(--bone) 80%, var(--dust)); }
+.enc-line .dim { color: var(--dust); }
 .ency-patch { border: 1px solid var(--seam); background: transparent; color: var(--dust); padding: 3px 12px; font: inherit; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
 .ency-patch b { font-weight: 400; font-size: 0.72rem; margin-left: 4px; }
 .ency-patch.on { border-color: #6fd08c; color: #6fd08c; background: color-mix(in srgb, #6fd08c 10%, transparent); }
@@ -710,7 +717,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-20 02:08</p>
+  <p class="build-tag">해독기 판: 2026-11-20 02:15</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -722,6 +729,7 @@ html, body {
   <section class="ency" id="v-ency" hidden aria-label="백과사전">
     <div class="ency-bar">
       <div class="ency-cats" id="ency-cats" role="tablist"></div>
+      <span class="ency-sort" id="ency-sort"></span>
       <button type="button" id="ency-patch" class="ency-patch" hidden></button>
       <input type="search" id="ency-q" placeholder="이름·설명·키워드 검색" aria-label="백과사전 검색">
     </div>
@@ -2455,7 +2463,11 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     const q = norm(ency.q);
     const out = eList(k).filter(v => (!q || encyText(k, v).includes(q)) && (!useGroup || !ency.g.size || ency.g.has(eGroup(k, v))) &&
       (!useGroup || !ency.r.size || !subOf(k) || subOf(k)(v).some(x => ency.r.has(x))) && (!useGroup || !ency.patch || !!patchMap()[k + '/' + v]));
-    return k === 'module' || k === 'relic' || k === 'minion' ? out.sort(byClassName(k)) : out;
+    if (k === 'module' || k === 'relic' || k === 'minion') out.sort(byClassName(k));
+    /* 정렬 (사용자 2026-11-20): 발동 조건순(모듈) · 최근 변경순(바뀐 것 먼저, 상향 → 하향 → 변경 → 교체 → 신규 → 고침). 묶음(등급·막) 안에서 */
+    if (ency.sort === 'kw' && k === 'module') { const KO = Object.keys(KW_CLS); const ki = v => { const w = (MM(v)[0] || '').split('·').find(x => KW_CLS[x]); return w ? KO.indexOf(w) : 99; }; out.sort((a, b) => ki(a) - ki(b)); }
+    if (ency.sort === 'patch') { const TO = ['상향', '하향', '변경', '교체', '신규', '고침']; const pm = patchMap(); const pi = v => { const p = pm[k + '/' + v]; return p ? TO.indexOf(p.tag) : 99; }; out.sort((a, b) => pi(a) - pi(b)); }
+    return out;
   }
   /* 설명 꾸미기: "타격 2:" 같은 발동 조건은 키워드 색 딱지, 상태이상·용어 이름은 점선 밑줄(올리면 설명, 누르면 용어 카드),
    * 숫자는 굵게, 강화 괄호 "(+2)"는 흐리게 */
@@ -2492,6 +2504,16 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     return PATCH;
   }
   const patchTag = (k, v) => { const p = patchMap()[k + '/' + v]; return p ? '<button type="button" class="tag vt vt-' + p.tag + ' ptag" data-patch="' + esc(p.ver) + '|' + p.s + '|' + p.i + '" title="' + esc(p.ver) + ' 패치노트에서 보기">' + esc(p.ver) + ' ' + p.tag + '</button>' : ''; };
+  /* 엘리트·우두머리·특수 적이 나오는 편성 (사용자 2026-11-20): 편성 이름 "A + B×3"에서 이 적 이름이 들어간 것, 3개까지 */
+  function encLine(v) {
+    const e = EN[v]; if (!e || !e.grade) return '';
+    const me = e.name.replace(/\s/g, '');
+    const seen = new Set();
+    const list = (N.encounter || []).map((t, i) => [i, t]).filter(([i, t]) => t && !seen.has(t) && t.split(' + ').some(p => p.replace(/×\d+$/, '').replace(/\s/g, '') === me) && seen.add(t)); //같은 이름 편성(난이도별)은 한 번만
+    if (!list.length) return '';
+    const shown = list.slice(0, 3).map(([i, t]) => '<span>' + esc(t) + '</span>').join('');
+    return '<div class="enc-line"><span class="dim">편성</span>' + shown + (list.length > 3 ? '<span class="dim">외 ' + (list.length - 3) + '개</span>' : '') + '</div>';
+  }
   function encyCard(k, v) {
     const name = eName(k, v), d = eDesc(k, v), tags = [];
     let cls, img = '', st = '', extra = '';
@@ -2533,12 +2555,15 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       '<span class="ico ' + cls + (img ? ' pic' : ' txt') + (k === 'relic' ? ' rl' : '') + '" aria-hidden="true"' + (k === 'module' && !img ? modIcoStyle(v) : '') + '>' + (img ? '<img alt="" loading="lazy" decoding="async" src="' + img + '">' : '<em>' + esc([...name][0]) + '</em>') + '</span>' +
       '<div><h3>' + esc(name) + (k === 'term' && TM[v].n ? ' N' : '') + '</h3>' + //수치가 있는 용어는 "화상 N" (사용자 2026-11-08)
       (tags.length ? '<div class="ec-tags">' + tags.join('') + '</div>' : '') + st +
-      (d ? '<p>' + fmtDesc(d, k === 'term' ? name : '') + '</p>' : k === 'minion' ? '' : k === 'enemy' ? '<p class="dim">특수능력 없음</p>' : '<p class="dim">설명 없음</p>') + extra + '</div></article>';
+      (d ? '<p>' + fmtDesc(d, k === 'term' ? name : '') + '</p>' : k === 'minion' || k === 'enemy' ? '' : '<p class="dim">설명 없음</p>') + (k === 'enemy' ? encLine(v) : '') + extra + '</div></article>';
   }
   function encyRender() {
     const k = ency.cat;
     { const pm = patchMap(), n = eList(k).filter(v => pm[k + '/' + v]).length, b = $('ency-patch');
-      b.hidden = !n; b.className = 'ency-patch' + (ency.patch ? ' on' : ''); b.innerHTML = PATCH_VER + ' 바뀐 것만 <b>' + n + '</b>'; }
+      b.hidden = !n; b.className = 'ency-patch' + (ency.patch ? ' on' : ''); b.innerHTML = PATCH_VER + ' 바뀐 것만 <b>' + n + '</b>';
+      const opts = [['', '이름순']].concat(k === 'module' ? [['kw', '발동 조건순']] : []).concat(n ? [['patch', '최근 변경순']] : []);
+      if (!opts.some(o => o[0] === (ency.sort || ''))) ency.sort = '';
+      $('ency-sort').innerHTML = opts.length > 1 ? '<span class="dim">정렬</span>' + opts.map(([v, t]) => '<button type="button" data-sort="' + v + '" class="' + ((ency.sort || '') === v ? 'on' : '') + '">' + t + '</button>').join('') : ''; }
     $('ency-cats').innerHTML = ENCY_CATS.map(([c, t]) => '<button type="button" role="tab" data-cat="' + c + '" aria-selected="' + (c === k) + '" class="' + (c === k ? 'on' : '') + '">' + t + '<b>' + encyIds(c, false).length + '</b></button>').join('');
     const gs = k === 'curse' ? [] : [...new Set(eList(k).map(v => eGroup(k, v)))].sort((a, b) => a - b);
     [...ency.g].forEach(g => { if (!gs.includes(g)) ency.g.delete(g); });
@@ -2693,6 +2718,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     goEncy(k, +v);
   }, true);
   $('ency-patch').addEventListener('click', () => { ency.patch = !ency.patch; encyRender(); });
+  $('ency-sort').addEventListener('click', e => { const b = e.target.closest('[data-sort]'); if (!b) return; ency.sort = b.dataset.sort; encyRender(); });
   /* 카드의 패치 딱지 → 아카이브의 그 항목 (그 판을 펼치고, 단락을 열고, 항목으로 스크롤) */
   let viTarget = null;
   document.addEventListener('click', e => {
