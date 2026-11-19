@@ -431,6 +431,17 @@ a.vi-n:hover { text-decoration: underline; }
 .vi p { margin: 0; font-size: 0.82rem; line-height: 1.55; }
 .vi p.vl-old { color: var(--dust); }
 .vi p.vl-new { color: var(--bone); }
+.vi p.vl-txt { color: color-mix(in srgb, var(--bone) 85%, var(--dust)); }
+.vl-tag { display: inline-block; font-size: 0.66rem; padding: 0 5px; margin-right: 6px; border: 1px solid var(--seam); color: var(--dust); vertical-align: 1px; }
+.vl-new .vl-tag { border-color: color-mix(in srgb, #6fd08c 60%, var(--seam)); color: #6fd08c; }
+mark.d-old { background: none; color: #ff8a8a; text-decoration: line-through; text-decoration-color: color-mix(in srgb, #ff8a8a 70%, transparent); }
+mark.d-new { background: color-mix(in srgb, #6fd08c 16%, transparent); color: #8ff0aa; font-weight: 700; padding: 0 1px; }
+mark.d-new b, mark.d-old b { color: inherit; }
+mark.d-old .kw, mark.d-new .kw { text-decoration: inherit; }
+mark.d-new:has(.kw), mark.d-old:has(.kw) { padding: 0; background: none; }
+mark.d-new .kw { outline: 1px solid #6fd08c; }
+mark.d-old .kw { outline: 1px solid #ff8a8a; }
+.vi p.vl-old .kw { opacity: .7; }
 .vi p.vl-dim, details.vd p.vl-dim { color: var(--dust); font-size: 0.76rem; }
 .ency-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
 .ency-cats { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -687,7 +698,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-20 01:40</p>
+  <p class="build-tag">해독기 판: 2026-11-20 01:45</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2540,12 +2551,45 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
         if (/^적/.test(title)) { const e = EN_BY_NAME[nm0.replace(/\s/g, '')]; return e ? 'enemy/' + e.id : ''; }
         return '';
       };
-      const lineHtml = t => '<p class="' + (/^이전/.test(t) ? 'vl-old' : /^(변경|이제)/.test(t) ? 'vl-new' : /^\(/.test(t) ? 'vl-dim' : '') + '">' + esc(t) + '</p>';
+      /* 글을 보기 쉽게 (사용자 2026-11-20 "다 흰색이라 직관성이 떨어짐"): 이전·변경은 작은 딱지, 바뀐 낱말만 색(이전 빨강 취소선, 변경 초록),
+       * 발동 조건·용어는 백과사전과 같은 색 딱지·밑줄 (fmtDesc). 바뀐 곳 표시는 낱말 단위 LCS */
+      const TOK = /\d+(?:\.\d+)?%?|[^\d\s,.:()/]+|[\s,.:()/]+/g;
+      const diffMarks = (a, b) => { //a·b 토큰 배열 → [a에서 바뀐 칸, b에서 바뀐 칸]
+        const n = a.length, m = b.length, L = Array.from({ length: n + 1 }, () => new Int16Array(m + 1));
+        for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+        const da = new Set(), db = new Set();
+        let i = 0, j = 0;
+        while (i < n && j < m) { if (a[i] === b[j]) { i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) da.add(i++); else db.add(j++); }
+        while (i < n) da.add(i++); while (j < m) db.add(j++);
+        return [da, db];
+      };
+      const marked = (toks, set) => toks.map((t, k) => set.has(k) && /\S/.test(t) && !/^[\s,.:()/]+$/.test(t) ? '\u0001' + t + '\u0002' : t).join('');
+      const rich = (t, cls) => fmtDesc(t).replace(/\u0001/g, '<mark class="' + cls + '">').replace(/\u0002/g, '</mark>');
+      const itemLines = lines => {
+        const oi = lines.findIndex(t => /^이전\s*:/.test(t)), ni = lines.findIndex(t => /^(변경|이제)\s*:/.test(t));
+        const body = t => t.replace(/^(이전|변경|이제)\s*:\s*/, '');
+        /* 맨 앞 발동 조건("주기 7:")은 따로 떼어 딱지로, 숫자가 바뀌었으면 딱지째 표시 */
+        const KWP = new RegExp('^((?:' + Object.keys(KW_CLS).join('|') + ')(?:/(?:' + Object.keys(KW_CLS).join('|') + '))*)(\\s*\\d+)?\\s*:\\s*');
+        const split = t => { const m = KWP.exec(t); return m ? [m[1] + (m[2] ? ' ' + m[2].trim() : ''), t.slice(m[0].length)] : ['', t]; };
+        const chip = (p, changed, cls) => { if (!p) return ''; const k = p.split(/[\s/]/)[0]; return (changed ? '<mark class="' + cls + '">' : '') + '<span class="kw ' + (KW_CLS[k] || '') + '">' + esc(p) + '</span>' + (changed ? '</mark>' : '') + ' '; };
+        let mo = null, mn = null, po = '', pn = '';
+        if (oi >= 0 && ni >= 0) {
+          const [p1, r1] = split(body(lines[oi])), [p2, r2] = split(body(lines[ni]));
+          po = chip(p1, p1 !== p2, 'd-old'); pn = chip(p2, p1 !== p2, 'd-new');
+          const a = r1.match(TOK) || [], b = r2.match(TOK) || []; const [da, db] = diffMarks(a, b); mo = marked(a, da); mn = marked(b, db);
+        }
+        return lines.map((t, k) => {
+          if (k === oi) return '<p class="vl-old"><span class="vl-tag">이전</span>' + (mo !== null ? po + rich(mo, 'd-old') : fmtDesc(body(t))) + '</p>';
+          if (k === ni) return '<p class="vl-new"><span class="vl-tag">' + (/^이제/.test(t) ? '이제' : '변경') + '</span>' + (mn !== null ? pn + rich(mn, 'd-new') : fmtDesc(body(t))) + '</p>';
+          return '<p class="' + (/^\(/.test(t) ? 'vl-dim' : 'vl-txt') + '">' + fmtDesc(t) + '</p>';
+        }).join('');
+      };
+      const lineHtml = t => '<p class="' + (/^\(/.test(t) ? 'vl-dim' : 'vl-txt') + '">' + fmtDesc(t) + '</p>';
       const detail = (v.detail || []).length ? '<div class="vd-head"><h4>자세한 변경점</h4><button type="button" data-vd-all>모두 펼치기</button></div>' +
         v.detail.map(sec => '<details class="vd"><summary>' + esc(sec.title) + (sec.items.length ? ' <b>' + sec.items.length + '</b>' : '') + '</summary>' +
           sec.text.map(lineHtml).join('') +
           sec.items.map(it => { const en = encyOf(sec.title, it.name); return '<div class="vi"><div class="vi-h">' + (en ? '<a class="vi-n" href="#ency/' + en + '" data-ency="' + en + '">' + esc(it.name) + '</a>' : '<span class="vi-n">' + esc(it.name) + '</span>') +
-            (it.tag ? '<span class="vt vt-' + esc(it.tag) + '">' + esc(it.tag) + '</span>' : '') + '</div>' + it.lines.map(lineHtml).join('') + '</div>'; }).join('') + '</details>').join('') : '';
+            (it.tag ? '<span class="vt vt-' + esc(it.tag) + '">' + esc(it.tag) + '</span>' : '') + '</div>' + itemLines(it.lines) + '</div>'; }).join('') + '</details>').join('') : '';
       body = '<article class="vc' + (now ? ' now' : '') + (plan ? ' plan' : '') + '"><div class="vc-top"><span class="vc-ver">' + esc(v.ver) + '</span><span class="vc-title">' + esc(v.title || '') + '</span>' +
         '<span class="vc-tag">' + esc(v.status || '') + '</span>' + (meta ? '<span class="vc-meta">' + esc(meta) + '</span>' : '') + '</div>' + act + notes + detail + '</article>';
     }
