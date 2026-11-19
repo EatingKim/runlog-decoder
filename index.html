@@ -668,7 +668,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-17 19:42</p>
+  <p class="build-tag">해독기 판: 2026-11-19 21:10</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -1705,7 +1705,9 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   src.addEventListener('input', () => { inputVia = '입력'; });
   let lastLog = '', named = true;
   const BASE = t => (named && N.base && N.base.minion && N.base.minion[t]) || null; //하수인 기본 [체력, 방어, 공격주기, 공격력]
-  const IMG = (k, v) => { const x = (named && N.img && N.img[k] && N.img[k][v]) || ''; return x.startsWith('u:') ? (N.img.unit || {})[x.slice(2)] || '' : x; }; //그림 (이미지 폴더에서 build.py가 넣음). 'u:유닛'은 하수인·적이 같이 쓰는 유닛 그림. 없으면 등급 색 네모
+  /* 그림 파일 주소 (사이트용은 img/…): 주소 끝에 '/'가 없이 열면(…/runlog-decoder) 상대 주소가 한 단계 위로 가서 그림이 안 나옴 → 폴더 기준으로 고침 (2026-11-19) */
+  const IMG_BASE = /\/$|\.html?$/i.test(location.pathname) || location.protocol === 'file:' ? '' : location.pathname.replace(/[^/]*$/, '') + location.pathname.split('/').pop() + '/';
+  const IMG = (k, v) => { let x = (named && N.img && N.img[k] && N.img[k][v]) || ''; if (x.startsWith('u:')) x = (N.img.unit || {})[x.slice(2)] || ''; return x.startsWith('img/') ? IMG_BASE + x : x; }; //그림 (이미지 폴더에서 build.py가 넣음). 'u:유닛'은 하수인·적이 같이 쓰는 유닛 그림. 없으면 등급 색 네모
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
   function nm(table, id) {
