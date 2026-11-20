@@ -747,7 +747,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-20 17:56</p>
+  <p class="build-tag">해독기 판: 2026-11-20 18:43</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2409,6 +2409,9 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     popPinned = !!pin;
     document.querySelectorAll('[data-pop].on').forEach(t => t.classList.remove('on'));
     tile.classList.add('on');
+    placePop(tile);
+  }
+  function placePop(tile) {
     const r = tile.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight, vw = document.documentElement.clientWidth, vh = innerHeight, m = 12;
     let x = r.left, y = r.bottom + 8;
     if (x + pw > vw - m) x = vw - m - pw;
@@ -2432,6 +2435,30 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     if (popPinned && popFor === t) hidePop(); else showPop(t, true);
   });
   document.addEventListener('click', e => { if (popPinned && !pop.contains(e.target)) hidePop(); });
+  /* 백과사전·아카이브 글 속 이름(유물·저주·물약·모듈·하수인)에 마우스를 올리면 팝업 (사용자 2026-11-20). 누르면 그대로 백과사전으로 */
+  const HOV_K = ['relic', 'curse', 'potion', 'module', 'minion'];
+  function encyPop(k, v) {
+    if (!N[k] || !N[k][v]) return '';
+    const label = { relic: '유물', module: '모듈', potion: '물약', curse: '저주', minion: '하수인' }[k];
+    const g = (N.grade[k] || [])[v] || 0, c = classOf(k, v);
+    const sub = label + (k === 'relic' || k === 'minion' ? ' · ' + RELIC_GN[g] + ' · ' + (c ? CLASS_TXT[c] + ' 전용' : '공용') : k === 'module' ? ' · ' + ['하급', '중급', '상급', '하자'][Math.min(3, g)] + (c ? ' · ' + CLASS_TXT[c] + ' 전용' : '') : '');
+    const b = k === 'minion' && BASE(v);
+    return (IMG(k, v) ? '<img class="pop-img" alt="" src="' + IMG(k, v) + '">' : '') + '<div class="pop-h"><b>' + nm(k, v) + '</b><span>' + sub + '</span></div>' +
+      (b ? '<div class="pr stat4 num"><span>체력 <b>' + b[0] + '</b></span><span>공격력 <b>' + b[3] + '</b></span><span>방어력 <b>' + b[1] + '</b></span><span>공격주기 <b>' + b[2] + '</b></span></div>' : '') +
+      '<div class="pr">' + (named && DS(k, v) ? (k === 'minion' ? '<span class="k">특수능력</span>' + esc(DS(k, v)) : fmtDesc(DS(k, v))) : '<span class="dim">설명 없음</span>') + '</div>';
+  }
+  let hovEl = null;
+  document.addEventListener('mouseover', e => {
+    if (!HOVER.matches || popPinned) return;
+    const a = e.target.closest('[data-ency]');
+    if (a === hovEl) return;
+    if (hovEl && !mapEl.contains(hovEl)) { hovEl = null; hidePop(); }
+    if (!a || a.classList.contains('to-ency') || pop.contains(a) || (mapEl.contains(a) && a.closest('[data-pop]'))) return;
+    const [k, v] = a.dataset.ency.split('/');
+    if (!HOV_K.includes(k)) return;
+    const html = encyPop(k, +v); if (!html) return;
+    hovEl = a; pop.innerHTML = html; pop.hidden = false; popFor = a; placePop(a);
+  });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') hidePop(); });
   addEventListener('scroll', () => { if (!pop.hidden) { if (popPinned && popFor) showPop(popFor, true); else hidePop(); } }, { passive: true });
 
