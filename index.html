@@ -783,7 +783,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-21 01:40</p>
+  <p class="build-tag">해독기 판: 2026-11-21 01:55</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2722,8 +2722,8 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
         '<span class="ev-name">' + esc(name) + '</span>' + tags.join('') + '<span class="ev-sum">' + sum.join('') + '</span><span class="ev-arrow" aria-hidden="true">▾</span></button>' +
         '<div class="ev-body">' + (d ? '<p class="ev-story">' + fmtDesc(d) + '</p>' : '') + extra + '</div></article>';
     }
-    return '<article class="ec ' + cls + (k === 'event' ? ' ev' : k === 'term' ? ' tm' : '') + '" id="e-' + k + '-' + v + '">' +
-      (k === 'term' ? '' : '<span class="ico ' + cls + (img ? ' pic' : ' txt') + (k === 'relic' ? ' rl' : '') + '" aria-hidden="true"' + (k === 'module' && !img ? modIcoStyle(v) : k === 'event' ? ' style="--c: var(--cyan)"' : '') + '>' + (img ? '<img alt="" loading="lazy" decoding="async" src="' + img + '">' : '<em>' + esc([...name][0]) + '</em>') + '</span>') +
+    return '<article class="ec ' + cls + (k === 'event' ? ' ev' : k === 'term' ? ' tm' : k === 'module' ? ' tm' : '') + '" id="e-' + k + '-' + v + '">' +
+      (k === 'term' || k === 'module' ? '' : '<span class="ico ' + cls + (img ? ' pic' : ' txt') + (k === 'relic' ? ' rl' : '') + '" aria-hidden="true"' + (k === 'module' && !img ? modIcoStyle(v) : k === 'event' ? ' style="--c: var(--cyan)"' : '') + '>' + (img ? '<img alt="" loading="lazy" decoding="async" src="' + img + '">' : '<em>' + esc([...name][0]) + '</em>') + '</span>') +
       '<div><h3>' + esc(name) + (k === 'term' && TM[v].n ? ' N' : '') + '</h3>' + //수치가 있는 용어는 "화상 N" (사용자 2026-11-08)
       (tags.length ? '<div class="ec-tags">' + tags.join('') + '</div>' : '') + st +
       (d ? '<p' + (k === 'event' ? ' class="ev-story"' : '') + '>' + fmtDesc(d, k === 'term' ? name : '') + '</p>' : k === 'minion' || k === 'enemy' ? '' : '<p class="dim">설명 없음</p>') + (k === 'enemy' ? encLine(v) : '') + extra + '</div></article>';
