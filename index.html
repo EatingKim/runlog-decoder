@@ -747,7 +747,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-20 18:43</p>
+  <p class="build-tag">해독기 판: 2026-11-20 18:48</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2436,8 +2436,13 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   });
   document.addEventListener('click', e => { if (popPinned && !pop.contains(e.target)) hidePop(); });
   /* 백과사전·아카이브 글 속 이름(유물·저주·물약·모듈·하수인)에 마우스를 올리면 팝업 (사용자 2026-11-20). 누르면 그대로 백과사전으로 */
-  const HOV_K = ['relic', 'curse', 'potion', 'module', 'minion'];
+  const HOV_K = ['relic', 'curse', 'potion', 'module', 'minion', 'term'];
   function encyPop(k, v) {
+    if (k === 'term') { //키워드·용어 (사용자 2026-11-20 "키워드도 같은 팝업으로")
+      const t = TM[v]; if (!t) return '';
+      const kc = KW_CLS[t.name];
+      return '<div class="pop-h"><b' + (kc ? ' style="color: var(--kw-' + kc + ')"' : '') + '>' + esc(t.name) + '</b><span>' + TERM_GROUP[termGroup(v)] + '</span></div><div class="pr">' + fmtDesc(t.desc || '') + '</div>';
+    }
     if (!N[k] || !N[k][v]) return '';
     const label = { relic: '유물', module: '모듈', potion: '물약', curse: '저주', minion: '하수인' }[k];
     const g = (N.grade[k] || [])[v] || 0, c = classOf(k, v);
@@ -2554,8 +2559,8 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   function fmtDesc(t, self) {
     return esc(t).replace(DESC_RE, (m, kw, n, term, par, num) => {
       if (term && term === self) return term; //용어 카드 안에서 자기 자신은 링크하지 않음
-      if (kw) { const tm = TM_BY_NAME[kw]; return '<span class="kw ' + KW_CLS[kw] + '"' + (tm ? ' data-ency="term/' + tm.id + '" title="' + esc(tm.desc) + '"' : '') + '>' + kw + (n ? ' ' + n.trim() : '') + '</span>'; }
-      if (term) { const tm = TM_BY_NAME[term]; return '<span class="term" data-ency="term/' + tm.id + '" title="' + esc(tm.desc) + '">' + term + '</span>'; }
+      if (kw) { const tm = TM_BY_NAME[kw]; return '<span class="kw ' + KW_CLS[kw] + '"' + (tm ? ' data-ency="term/' + tm.id + '"' : '') + '>' + kw + (n ? ' ' + n.trim() : '') + '</span>'; }
+      if (term) { const tm = TM_BY_NAME[term]; return '<span class="term" data-ency="term/' + tm.id + '">' + term + '</span>'; }
       return par ? '<span class="up">' + par + '</span>' : '<b>' + num + '</b>';
     });
   }
@@ -2631,7 +2636,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       const pt = patchTag(k, v); if (pt) tags.unshift(pt);
       if (k === 'module') {
         const mm = MM(v);
-        if (mm[0]) mm[0].split('·').filter(w => !(d || '').includes(w)).forEach(w => { const tm = TM_BY_NAME[w]; tags.push('<span class="tag kwt" style="--k: var(--kw-' + (KW_CLS[w] || 'x') + ', var(--dust))"' + (tm ? ' data-ency="term/' + tm.id + '" title="' + esc(tm.desc) + '"' : '') + '>' + esc(w) + '</span>'); });
+        if (mm[0]) mm[0].split('·').filter(w => !(d || '').includes(w)).forEach(w => { const tm = TM_BY_NAME[w]; tags.push('<span class="tag kwt" style="--k: var(--kw-' + (KW_CLS[w] || 'x') + ', var(--dust))"' + (tm ? ' data-ency="term/' + tm.id + '"' : '') + '>' + esc(w) + '</span>'); });
         if (mm[1] && !(d || '').includes('승전')) tags.push('<span class="tag">승전 ' + mm[1] + '</span>');
         if (mm[2]) tags.push('<span class="tag">성장</span>');
       }
