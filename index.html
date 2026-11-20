@@ -427,17 +427,17 @@ details.vd summary b { font-weight: 400; color: var(--dust); font-size: 0.76rem;
 .eg.eg-ev { grid-template-columns: 1fr; gap: 6px; }
 .ec.ev { --c: var(--cyan); display: block; padding: 0; background: linear-gradient(160deg, color-mix(in srgb, var(--cyan) 8%, var(--rock)) 0%, var(--rock) 40%); }
 .ec.ev { position: relative; }
-.ev-head { padding-right: 34px !important; display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 0 !important; border-radius: 0 !important; background: transparent !important; color: inherit; text-align: left; cursor: pointer; flex-wrap: wrap; }
+.ev-head { padding: 12px 34px 12px 16px !important; display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 0 !important; border-radius: 0 !important; background: transparent !important; color: inherit; text-align: left; cursor: pointer; flex-wrap: wrap; }
 .ev-head .ico { width: 34px; height: 34px; flex: none; }
 .ev-head .ico em { font-size: 1rem !important; }
 .ev-name { font-weight: 800; font-size: 0.98rem; color: var(--cyan); }
 .ev-sum { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-left: auto; }
 .ev-arrow { position: absolute; right: 12px; top: 18px; color: var(--dust); transition: transform .15s; }
 .ec.ev.open .ev-arrow { transform: rotate(180deg); }
-.ev-body { display: none; padding: 0 14px 12px 56px; }
+.ev-body { display: none; padding: 0 16px 14px; }
 .ec.ev.open .ev-body { display: block; }
 .ec.ev:hover { transform: none; }
-@media (max-width: 600px) { .ev-body { padding-left: 14px; } .ev-sum { margin-left: 0; width: 100%; } }
+@media (max-width: 600px) { .ev-sum { margin-left: 0; width: 100%; } }
 .er.neg { border-style: dashed; }
 .ec.ev .ico.txt em { color: var(--cyan); }
 .ec.ev h3 { font-size: 1.02rem; }
@@ -747,7 +747,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-20 18:48</p>
+  <p class="build-tag">해독기 판: 2026-11-20 18:54</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2649,7 +2649,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       const sum = []; const seen = new Set();
       evChoices(v).forEach(t => { const m = /\((.*)\)\s*$/.exec(t); evRes(m ? m[1] : t).forEach(x => { const key = x.c + x.neg; if (!seen.has(key)) { seen.add(key); sum.push('<i class="er er-' + x.c + (x.neg ? ' neg' : '') + '">' + (x.neg ? '−' : '+') + x.t + '</i>'); } }); });
       return '<article class="ec ev' + (evOpen.has(v) ? ' open' : '') + '" id="e-event-' + v + '" data-ev="' + v + '">' +
-        '<button type="button" class="ev-head" aria-expanded="' + evOpen.has(v) + '"><span class="ico ga txt" style="--c: var(--cyan)" aria-hidden="true"><em>' + esc([...name][0]) + '</em></span>' +
+        '<button type="button" class="ev-head" aria-expanded="' + evOpen.has(v) + '">' + //그림이 없어 네모 아이콘은 뺌 (사용자 2026-11-20)
         '<span class="ev-name">' + esc(name) + '</span>' + tags.join('') + '<span class="ev-sum">' + sum.join('') + '</span><span class="ev-arrow" aria-hidden="true">▾</span></button>' +
         '<div class="ev-body">' + (d ? '<p class="ev-story">' + fmtDesc(d) + '</p>' : '') + extra + '</div></article>';
     }
