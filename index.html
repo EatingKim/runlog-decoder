@@ -719,6 +719,9 @@ html, body {
 /* 용어 카드: 그림이 없어 네모 아이콘 없이, 이름을 그 키워드 색으로 (사용자 2026-11-20) */
 .ec.tm { grid-template-columns: 1fr; padding-left: 16px; }
 .ec.tm h3 { color: var(--c); }
+.er.er-fight { color: #ff9d5c; }
+.ev-tools { display: flex; justify-content: flex-end; margin: 0 0 -24px; position: relative; z-index: 1; }
+.ev-tools button { font-size: .78rem; padding: 4px 12px; }
 </style>
 </head>
 <body>
@@ -779,7 +782,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-21 00:34</p>
+  <p class="build-tag">해독기 판: 2026-11-21 01:11</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2518,7 +2521,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
    * 주소: #ency/분류/번호 → 뒤로 가기로 해독 화면에 돌아옴 */
   const HOVER = matchMedia('(hover: hover) and (pointer: fine)');
   const ENCY_CATS = [['module', '모듈'], ['relic', '유물'], ['minion', '하수인'], ['potion', '물약'], ['curse', '저주'], ['enemy', '적'], ['event', '이벤트'], ['term', '용어']];
-  const EV_SHOW = [1, 2]; //이벤트 탭 시험 (사용자 2026-11-20 "테스트용으로 하나만"): 축복의 성당만. 다 보이려면 null
+  const EV_SHOW = null; //44개 전부 (사용자 2026-11-21)
   const EV_ACT_TXT = ['공용', '1막', '2막', '3막', '4막'];
   const GRADE_TXT = ['하급', '중급', '상급', '하자'];
   const gradeOf = (k, v) => (N.grade && N.grade[k] ? N.grade[k][v] || 0 : 0);
@@ -2557,22 +2560,39 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   const TERM_GROUP = ['모듈 키워드', '상태이상', '용어'];
   const termGroup = v => TERM_KW.includes(v) ? 0 : TERM_ST.includes(v) ? 1 : 2;
   const eName = (k, v) => k === 'enemy' ? EN[v].name : k === 'term' ? TM[v].name : N[k][v];
-  /* 결과 글 → 얻는 것·잃는 것 [{c, t, neg}] (사용자 2026-11-20): 낱말 뒤 말로 판단. 저주는 받으면 잃음(−), 제거하면 얻음(+) */
-  const EV_RES = [['골드', 'gold', '골드'], ['저주', 'curse', '저주'], ['유물', 'relic', '유물'], ['물약', 'pot', '물약'], ['모듈', 'mod', '모듈'], ['하수인', 'min', '하수인'], ['강화', 'up', '강화'], ['체력', 'hp', '체력']];
+  /* 결과 글 → 딱지 [{c, t, s, bad}] (사용자 2026-11-20, 44개 넣으며 2026-11-21 다시 짬)
+   * 글을 마디(쉼표·마침표·'~고 ')로 나눠 마디마다 낱말과 그 마디의 동사로 판단. s = '+' 늘어남 / '−' 줄어듦 / '' 바뀜, bad = 손해(빨간 점선)
+   * 저주는 받으면 +저주(손해), 제거하면 −저주. 적·엘리트의 체력은 내 것이 아니라 뺌. 유물 이름만 적힌 마디도 유물로 봄 */
   function evRes(r) {
-    const out = [];
-    for (const [w, c, t] of EV_RES) {
-      const i = r.indexOf(w); if (i < 0) continue;
-      if (w === '강화' && out.some(x => x.c === 'min')) { out.find(x => x.c === 'min').t = '하수인 강화'; continue; }
-      const after = r.slice(i, i + 22).split(/[,.]|고 /)[0];
-      let neg = /잃|내고|내면|빼앗|소모|줄어|감소/.test(after);
-      if (w === '저주') neg = !/제거/.test(r.slice(i, i + 14));
-      if (w === '모듈' && /제거/.test(after)) neg = true;
-      if (w === '체력' && /회복|증가/.test(after)) neg = false;
-      out.push({ c, t, neg });
+    const out = [], add = (c, t, sg, bad) => { if (!out.some(x => x.c === c && x.s === sg && x.t === t)) out.push({ c, t, s: sg, bad: !!bad }); };
+    const relicNames = (N.relic || []).filter(n => n && n.replace(/\s/g, '').length >= 3).map(n => n.replace(/\s/g, ''));
+    const txt = r.replace(/(\S+), (\S+) 강화/g, '$1 강화, $2 강화');
+    for (const cl of txt.replace(/고 /g, '고|').replace(/며 /g, '며|').split(/[|,.]/)) {
+      const has = w => cl.includes(w);
+      if (/전투한다|전투하고|전투하며/.test(cl)) add('fight', '전투', '', false);
+      const minUp = has('하수인') && /최대체력|공격력|능력치|등급|강화/.test(cl) && !/잃|바치|소모/.test(cl);
+      if (minUp) add('min', '하수인 강화', '+');
+      if (has('골드')) /내|잃|절반/.test(cl) ? add('gold', '골드', '−', true) : add('gold', '골드', '+');
+      if (has('저주')) /제거/.test(cl) ? add('curse', '저주', '−') : add('curse', '저주', '+', true);
+      const relic = has('유물') || relicNames.some(n => cl.replace(/\s/g, '').includes(n));
+      if (relic) /잃/.test(cl) ? add('relic', '유물', '−', true) : /변경|교체/.test(cl) ? add('relic', '유물 변경', '') : add('relic', '유물', '+');
+      if (has('물약')) /잃/.test(cl) ? add('pot', '물약', '−', true) : /바꾼/.test(cl) ? add('pot', '물약 변경', '') : add('pot', '물약', '+');
+      if (has('모듈')) {
+        if (/제거/.test(cl)) add('mod', '모듈', '−');
+        else if (/소멸|금지/.test(cl)) add('mod', '모듈', '−', true);
+        else if (/바꾼|옮긴|합성|그대로/.test(cl)) { if (!/그대로/.test(cl)) add('mod', '모듈 변경', ''); }
+        else if (has('하자')) add('mod', '하자 모듈', '+', true);
+        else add('mod', '모듈', '+');
+      }
+      if (has('하수인') && /잃|바치|소모/.test(cl)) add('min', '하수인', '−', true);
+      else if (has('하수인') && !minUp && !/옮긴/.test(cl)) add('min', '하수인', '+');
+      if (has('강화') && !minUp) /감소/.test(cl) ? add('up', '강화', '−', true) : add('up', '강화', '+');
+      if (has('공격력') && !has('강화') && !minUp) /감소/.test(cl) ? add('up', '공격력', '−', true) : add('up', '공격력', '+');
+      if (has('체력') && !minUp && !/적의|적이|엘리트의/.test(cl)) /잃|감소/.test(cl) ? add('hp', '체력', '−', true) : add('hp', '체력', '+');
     }
-    return out.slice(0, 4);
+    return out.slice(0, 6);
   }
+  const evTag = x => '<i class="er er-' + x.c + (x.bad ? ' neg' : '') + '">' + x.s + x.t + '</i>';
   const evChoices = v => [0, 1, 2, 3].map(i => ((N.evchoice || {}).text || [])[v * 4 + i] || '').filter(Boolean);
   const eDesc = (k, v) => k === 'enemy' ? (EN[v].ability === '없음' ? '' : EN[v].ability) : k === 'term' ? TM[v].desc : k === 'event' ? ((N.evdesc || [])[v] || '').trim() : DS(k, v);
   function eList(k) {
@@ -2664,7 +2684,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       const linkName = h => h.replace(/'([^']+)'/g, (m, nm0) => { for (const kk of ['relic', 'curse', 'potion', 'module', 'minion']) { const i = (N[kk] || []).findIndex(x => x && x.replace(/\s/g, '') === nm0.replace(/\s/g, '')); if (i > 0) return '<span class="term" data-ency="' + kk + '/' + i + '">' + esc(N[kk][i]) + '</span>'; } return m; });
       /* 결과 종류 딱지 (사용자 2026-11-20 "밋밋함"): 결과 글에 나오는 말로 골드·체력·유물·저주·모듈·물약·하수인·강화를 색 딱지로 */
       const RES = [['골드', 'gold', '골드'], ['저주', 'curse', '저주'], ['유물', 'relic', '유물'], ['물약', 'pot', '물약'], ['모듈', 'mod', '모듈'], ['하수인', 'min', '하수인'], ['강화', 'up', '강화'], ['체력', 'hp', '체력']];
-      const resTags = r => evRes(r).map(x => '<i class="er er-' + x.c + (x.neg ? ' neg' : '') + '">' + (x.neg ? '−' : '+') + x.t + '</i>').join('');
+      const resTags = r => evRes(r).map(evTag).join('');
       extra = '<div class="ev-opts">' + evChoices(v).map((t, i) => { const m = /^(.*?)\s*\((.*)\)\s*$/.exec(t), act = m ? m[1] : t, res = m ? m[2] : '';
         return '<div class="ev-opt"><span class="ev-key">' + (i + 1) + '</span><div><div class="ev-act">' + esc(act) + '</div>' +
           (res ? '<div class="ev-res"><span class="ev-tags">' + resTags(res) + '</span>' + linkName(fmtDesc(res)) + '</div>' : '') + '</div></div>'; }).join('') + '</div>';
@@ -2694,7 +2714,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     }
     if (k === 'event') { //한 줄 전체 너비, 머리를 누르면 펼침 (사용자 2026-11-20)
       const sum = []; const seen = new Set();
-      evChoices(v).forEach(t => { const m = /\((.*)\)\s*$/.exec(t); evRes(m ? m[1] : t).forEach(x => { const key = x.c + x.neg; if (!seen.has(key)) { seen.add(key); sum.push('<i class="er er-' + x.c + (x.neg ? ' neg' : '') + '">' + (x.neg ? '−' : '+') + x.t + '</i>'); } }); });
+      evChoices(v).forEach(t => { const m = /\((.*)\)\s*$/.exec(t); evRes(m ? m[1] : t).forEach(x => { const key = x.c + x.s + x.t; if (!seen.has(key)) { seen.add(key); sum.push(evTag(x)); } }); });
       return '<article class="ec ev' + (evOpen.has(v) ? ' open' : '') + '" id="e-event-' + v + '" data-ev="' + v + '">' +
         '<button type="button" class="ev-head" aria-expanded="' + evOpen.has(v) + '">' + //그림이 없어 네모 아이콘은 뺌 (사용자 2026-11-20)
         '<span class="ev-name">' + esc(name) + '</span>' + tags.join('') + '<span class="ev-sum">' + sum.join('') + '</span><span class="ev-arrow" aria-hidden="true">▾</span></button>' +
@@ -2727,8 +2747,8 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     const groups = {};
     ids.forEach(v => { const g = eGroup(k, v); (groups[g] = groups[g] || []).push(v); });
     const order = Object.keys(groups).map(Number).sort((a, b) => a - b);
-    $('ency-grid').innerHTML = ids.length ? order.map(g => '<h2 class="eg-h ' + groupCls(k, g) + '"><span>' + groupLabel(k, g) + '</span><b class="num">' + groups[g].length + '</b></h2>' +
-      '<div class="eg' + (k === 'event' ? ' eg-ev' : '') + '">' + groups[g].map(v => encyCard(k, v)).join('') + '</div>').join('') : '<p class="ency-empty">찾는 항목이 없습니다.</p>';
+    $('ency-grid').innerHTML = (k === 'event' && ids.length ? '<div class="ev-tools"><button type="button" data-evall>' + (evOpen.size ? '모두 접기' : '모두 펼치기') + '</button></div>' : '') + (ids.length ? order.map(g => '<h2 class="eg-h ' + groupCls(k, g) + '"><span>' + groupLabel(k, g) + '</span><b class="num">' + groups[g].length + '</b></h2>' +
+      '<div class="eg' + (k === 'event' ? ' eg-ev' : '') + '">' + groups[g].map(v => encyCard(k, v)).join('') + '</div>').join('') : '<p class="ency-empty">찾는 항목이 없습니다.</p>');
   }
   function setView(v) {
     const e = v === 'ency';
@@ -2868,6 +2888,11 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     goEncy(k, +v);
   }, true);
   $('ency-grid').addEventListener('click', e => {
+    if (e.target.closest('[data-evall]')) { //모두 펼치기·접기 (보이는 이벤트 전부)
+      const cards = [...$('ency-grid').querySelectorAll('.ec.ev')];
+      if (evOpen.size) evOpen.clear(); else cards.forEach(c => evOpen.add(+c.dataset.ev));
+      encyRender(); return;
+    }
     const h = e.target.closest('.ev-head'); if (!h) return;
     const card = h.closest('.ec.ev'), v = +card.dataset.ev;
     if (evOpen.has(v)) evOpen.delete(v); else evOpen.add(v);
