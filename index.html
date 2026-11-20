@@ -700,7 +700,7 @@ html, body {
 .pop.qt::before { content: ""; position: absolute; width: 12px; height: 12px; left: calc(var(--ax, 24px) - 6px); top: -7px; transform: rotate(45deg); transform-origin: 50% 50%;
   background: #1b1c24; border: 1px solid rgba(255,255,255,.1); border-right: 0; border-bottom: 0; z-index: 0; }
 .pop.qt[data-side="above"]::before { top: auto; bottom: -7px; transform: rotate(225deg); background: #15161d; }
-.qt-h { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 12px 14px 10px; border-radius: 14px 14px 0 0;
+.qt-h { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 10px 14px 9px; border-radius: 14px 14px 0 0;
   background: linear-gradient(115deg, color-mix(in srgb, var(--c) 24%, transparent), transparent 75%); border-bottom: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
 .qt-pic { flex: none; width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%;
   background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--c) 35%, transparent), transparent 70%); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 50%, transparent); }
@@ -712,8 +712,10 @@ html, body {
 .qt-s { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 10px 14px 0; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,.06); }
 .qt-s span { display: grid; justify-items: center; gap: 1px; padding: 5px 0; background: #15161d; font-size: .66rem; color: var(--dust); }
 .qt-s b { font-size: .95rem; color: var(--bone); }
-.qt-b { padding: 10px 14px 4px; font-size: .86rem; line-height: 1.55; }
-.qt-f { padding: 4px 14px 9px; font-size: .68rem; color: color-mix(in srgb, var(--dust) 70%, transparent); text-align: right; }
+.qt-b { padding: 9px 14px 11px; font-size: .86rem; line-height: 1.55; }
+.qt-h.np .qt-t { display: flex; align-items: baseline; gap: 8px; }
+.qt-h.np .qt-go { align-self: center; }
+.qt-go { margin-left: auto; align-self: flex-start; white-space: nowrap; font-size: .66rem; color: color-mix(in srgb, var(--dust) 75%, transparent); }
 </style>
 </head>
 <body>
@@ -774,7 +776,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-20 19:09</p>
+  <p class="build-tag">해독기 판: 2026-11-20 20:35</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2471,13 +2473,13 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   /* 마우스 팝업 전용 모양 (사용자 2026-11-20 "카드랑 디자인이 같아서 아쉬움"): 둥근 유리판 + 등급 색 머리띠 + 가리키는 꼬리 */
   const QT_GC = ['var(--g0)', 'var(--g1)', 'var(--g2)', 'var(--g3)', 'var(--g0)', 'var(--g0)'];
   function qtWrap(c, pic, name, sub, body) {
-    return '<div class="qt-h" style="--c: ' + c + '">' + '<span class="qt-pic">' + pic + '</span><span class="qt-t"><b>' + name + '</b><small>' + sub + '</small></span></div>' + body + '<div class="qt-f">누르면 백과사전에서 보기</div>';
+    return '<div class="qt-h' + (pic ? '' : ' np') + '" style="--c: ' + c + '">' + (pic ? '<span class="qt-pic">' + pic + '</span>' : '') + '<span class="qt-t"><b>' + name + '</b><small>' + sub + '</small></span><span class="qt-go">누르면 백과사전 ›</span></div>' + body; //안내는 머리 오른쪽 위로 (사용자 2026-11-20 "위로 올려서 크기 줄여")
   }
   function encyPop(k, v) {
     if (k === 'term') { //키워드·용어 (사용자 2026-11-20 "키워드도 같은 팝업으로")
       const t = TM[v]; if (!t) return '';
       const kc = KW_CLS[t.name], c = kc ? 'var(--kw-' + kc + ')' : 'var(--void)';
-      return qtWrap(c, '<em>' + esc([...t.name][0]) + '</em>', esc(t.name), TERM_GROUP[termGroup(v)], '<div class="qt-b">' + fmtDesc(t.desc || '') + '</div>');
+      return qtWrap(c, '', esc(t.name), TERM_GROUP[termGroup(v)], '<div class="qt-b">' + fmtDesc(t.desc || '') + '</div>');
     }
     if (!N[k] || !N[k][v]) return '';
     const label = { relic: '유물', module: '모듈', potion: '물약', curse: '저주', minion: '하수인' }[k];
@@ -2485,7 +2487,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     const sub = label + (k === 'relic' || k === 'minion' ? ' · ' + RELIC_GN[g] + ' · ' + (cl ? CLASS_TXT[cl] + ' 전용' : '공용') : k === 'module' ? ' · ' + ['하급', '중급', '상급', '하자'][Math.min(3, g)] + (cl ? ' · ' + CLASS_TXT[cl] + ' 전용' : '') : '');
     const c = k === 'curse' ? '#ff7a7a' : k === 'potion' ? 'var(--cyan)' : k === 'module' ? QT_GC[Math.min(3, g)] : QT_GC[g] || 'var(--g0)';
     const b = k === 'minion' && BASE(v);
-    const pic = IMG(k, v) ? '<img alt="" src="' + IMG(k, v) + '">' : '<em>' + esc([...(N[k][v] || '?')][0]) + '</em>';
+    const pic = IMG(k, v) ? '<img alt="" src="' + IMG(k, v) + '">' : ''; //그림 없으면 동그라미 없이
     return qtWrap(c, pic, esc(N[k][v]), sub,
       (b ? '<div class="qt-s num"><span>체력<b>' + b[0] + '</b></span><span>공격력<b>' + b[3] + '</b></span><span>방어력<b>' + b[1] + '</b></span><span>공격주기<b>' + b[2] + '</b></span></div>' : '') +
       '<div class="qt-b">' + (named && DS(k, v) ? (k === 'minion' ? esc(DS(k, v)) : fmtDesc(DS(k, v))) : '<span class="dim">설명 없음</span>') + '</div>');
