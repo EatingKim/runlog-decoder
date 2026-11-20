@@ -731,6 +731,10 @@ html, body {
 .n4 { color: var(--dust); } .chip.g4 { color: var(--dust); }
 .tag.ptgt { border-color: color-mix(in srgb, var(--pc) 55%, transparent) !important; color: var(--pc) !important; }
 .ptgt-min { --pc: #e8c35a; } .ptgt-foe { --pc: #ff8a7a; } .ptgt-pl { --pc: #6fd08c; } .ptgt-perm { --pc: #b99cff; }
+.eg-sub { grid-column: 1 / -1; margin: 6px 0 -2px; font-size: .8rem; font-weight: 800; color: var(--c, var(--dust)); display: flex; align-items: center; gap: 6px; }
+.eg-sub:first-child { margin-top: 0; }
+.eg-sub b { font-weight: 400; font-size: .7rem; color: var(--dust); }
+.eg-sub::after { content: ""; flex: 1; height: 1px; background: color-mix(in srgb, var(--c, var(--dust)) 30%, transparent); }
 </style>
 </head>
 <body>
@@ -791,7 +795,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-21 02:01</p>
+  <p class="build-tag">해독기 판: 2026-11-21 02:19</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2624,13 +2628,13 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       (!useGroup || !ency.r.size || !subOf(k) || subOf(k)(v).some(x => ency.r.has(x))) && (!useGroup || k !== 'module' || !ency.c.size || ency.c.has(classOf(k, v))) && (!useGroup || !ency.patch || !!patchMap()[k + '/' + v]));
     if (k === 'module' || k === 'relic' || k === 'minion') out.sort(byClassName(k));
     /* 정렬 (사용자 2026-11-20): 발동 조건순(모듈) · 최근 변경순(바뀐 것 먼저, 상향 → 하향 → 변경 → 교체 → 신규 → 고침). 묶음(등급·막) 안에서 */
-    if (ency.sort === 'kw' && k === 'module') { const KO = Object.keys(KW_CLS); const ki = v => { const w = (MM(v)[0] || '').split('·').find(x => KW_CLS[x]); return w ? KO.indexOf(w) : 99; }; out.sort((a, b) => ki(a) - ki(b)); }
+    if (ency.sort === 'kw' && k === 'module') { const KO = Object.keys(KW_CLS); out.sort((a, b) => kwIdx(a, KO) - kwIdx(b, KO)); }
     if (ency.sort === 'patch') { const TO = ['상향', '하향', '변경', '교체', '신규', '고침']; const pm = patchMap(); const pi = v => { const p = pm[k + '/' + v]; return p ? TO.indexOf(p.tag) : 99; }; out.sort((a, b) => pi(a) - pi(b)); }
     return out;
   }
   /* 설명 꾸미기: "타격 2:" 같은 발동 조건은 키워드 색 딱지, 상태이상·용어 이름은 점선 밑줄(올리면 설명, 누르면 용어 카드),
    * 숫자는 굵게, 강화 괄호 "(+2)"는 흐리게 */
-  const KW_CLS = { 타격: 'hit', 주기: 'cyc', 개전: 'open', 피격: 'hurt', 승전: 'win', 결속: 'bond', 사망: 'death', 시전: 'cast', 환류: 'soul', 소생: 'cast', 제물: 'cast', 붕괴: 'cast', 연결: 'cast' };
+  const KW_CLS = { 개전: 'open', 결속: 'bond', 주기: 'cyc', 타격: 'hit', 피격: 'hurt', 사망: 'death', 승전: 'win', 환류: 'soul', 시전: 'cast', 소생: 'cast', 제물: 'cast', 붕괴: 'cast', 연결: 'cast' };
   const LINK_TERMS = ['화상', '산성', '봉인', '무장해제', '산란', '기생', '분열', '재생', '충전', '부활', '자해', '면역', '유충', '거인', '불굴', '환영', '약화', '흡수', '부드러움', '발열', '얽힘', '망각', '흡혈', '소멸', '점화', '명상'].filter(n => TM_BY_NAME[n]);
   const DESC_RE = new RegExp('(' + Object.keys(KW_CLS).join('|') + ')(\\s*\\d+)?\\s*:|(' + LINK_TERMS.sort((a, b) => b.length - a.length).join('|') + ')|(\\(\\+?[\\d.]+%?\\))|(\\d+(?:\\.\\d+)?%?)', 'g');
   function fmtDesc(t, self) {
@@ -2674,6 +2678,8 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     return '<div class="enc-line"><span class="dim">편성</span>' + shown + (list.length > 3 ? '<span class="dim">외 ' + (list.length - 3) + '개</span>' : '') + '</div>';
   }
   const evOpen = new Set(); //펼친 이벤트
+  /* 모듈의 첫 발동 키워드 (게임 번호 순서로 가장 앞) → 정렬·소제목용. 없으면 99 */
+  function kwIdx(v, KO) { const ws = (MM(v)[0] || '').split('·').filter(x => KW_CLS[x]).map(x => KO.indexOf(x)); return ws.length ? Math.min(...ws) : 99; }
   function encyCard(k, v) {
     const name = eName(k, v), d = eDesc(k, v), tags = [];
     let cls, img = '', st = '', extra = '';
@@ -2743,6 +2749,19 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       (tags.length ? '<div class="ec-tags">' + tags.join('') + '</div>' : '') + st +
       (d ? '<p' + (k === 'event' ? ' class="ev-story"' : '') + '>' + fmtDesc(d, k === 'term' ? name : '') + '</p>' : k === 'minion' || k === 'enemy' ? '' : '<p class="dim">설명 없음</p>') + (k === 'enemy' ? encLine(v) : '') + extra + '</div></article>';
   }
+  /* 묶음 안 카드들. 모듈을 발동 조건순으로 보면 키워드가 바뀌는 곳마다 소제목 (사용자 2026-11-21) */
+  function egBody(k, vs) {
+    if (!(k === 'module' && ency.sort === 'kw')) return vs.map(v => encyCard(k, v)).join('');
+    const KO = Object.keys(KW_CLS), cnt = {};
+    vs.forEach(v => { const i = kwIdx(v, KO); cnt[i] = (cnt[i] || 0) + 1; });
+    let last = null;
+    return vs.map(v => {
+      const i = kwIdx(v, KO), w = KO[i];
+      const h = i !== last ? '<h3 class="eg-sub' + (w ? ' kw-' + KW_CLS[w] : '') + '">' + (w || '발동 조건 없음') + '<b class="num">' + cnt[i] + '</b></h3>' : '';
+      last = i;
+      return h + encyCard(k, v);
+    }).join('');
+  }
   function encyRender() {
     const k = ency.cat;
     { const pm = patchMap(), n = eList(k).filter(v => pm[k + '/' + v]).length, b = $('ency-patch');
@@ -2772,7 +2791,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     ids.forEach(v => { const g = eGroup(k, v); (groups[g] = groups[g] || []).push(v); });
     const order = Object.keys(groups).map(Number).sort((a, b) => a - b);
     $('ency-grid').innerHTML = (k === 'event' && ids.length ? '<div class="ev-tools"><button type="button" data-evall>' + (evOpen.size ? '모두 접기' : '모두 펼치기') + '</button></div>' : '') + (ids.length ? order.map(g => '<h2 class="eg-h ' + groupCls(k, g) + '"><span>' + groupLabel(k, g) + '</span><b class="num">' + groups[g].length + '</b></h2>' +
-      '<div class="eg' + (k === 'event' ? ' eg-ev' : '') + '">' + groups[g].map(v => encyCard(k, v)).join('') + '</div>').join('') : '<p class="ency-empty">찾는 항목이 없습니다.</p>');
+      '<div class="eg' + (k === 'event' ? ' eg-ev' : '') + '">' + egBody(k, groups[g]) + '</div>').join('') : '<p class="ency-empty">찾는 항목이 없습니다.</p>');
   }
   function setView(v) {
     const e = v === 'ency';
