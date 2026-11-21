@@ -739,6 +739,18 @@ html, body {
 @media (max-width: 600px) { .ev-fstep { grid-template-columns: 1fr; gap: 4px; } .ev-fs { padding-top: 0; } }
 .ev-opt.short { padding-top: 5px !important; padding-bottom: 5px !important; align-items: center; }
 .ev-opt.short .ev-key { font-size: .7rem; }
+/* 패치 배지: 카드 오른쪽 위 모서리, 둥근 알약 + 화살표 (다른 딱지와 모양을 달리함, 사용자 2026-11-21) */
+.ec .ec-tags .ptag { position: absolute; top: 8px; right: 9px; z-index: 2; display: inline-flex; align-items: center; gap: 4px;
+  clip-path: none !important; border-radius: 999px !important; border: 1px solid color-mix(in srgb, currentColor 45%, transparent) !important;
+  background: color-mix(in srgb, currentColor 14%, var(--rock)) !important; padding: 1px 8px 1px 6px !important; font-size: .66rem !important; line-height: 1.5; }
+.ec .ec-tags .ptag i { font-style: normal; font-size: .6rem; }
+.ec .ec-tags .ptag b { font-weight: 800; }
+.ec .ec-tags .ptag small { font-size: .6rem; opacity: .75; }
+.ec .ec-tags .ptag:hover { background: color-mix(in srgb, currentColor 26%, var(--rock)) !important; }
+.ec:has(.ptag) > div > h3 { padding-right: 86px; }
+.ec:has(.ptag) > div > .ec-tags { margin-right: 86px !important; }
+.ec:has(.ptag) > div > h3:has(+ .ec-tags) { padding-right: 0; }
+.ec .ec-tags:has(> .ptag:only-child) { margin: 0 !important; height: 0; flex-basis: 0 !important; }
 </style>
 </head>
 <body>
@@ -799,7 +811,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-21 21:17</p>
+  <p class="build-tag">해독기 판: 2026-11-21 21:31</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2695,7 +2707,8 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     cur.detail.forEach((sec, si) => sec.items.forEach((it, ii) => { const key = patchKey(sec.title, it.name); if (key && it.tag) PATCH[key] = { ver: cur.ver, tag: it.tag, s: si, i: ii }; }));
     return PATCH;
   }
-  const patchTag = (k, v) => { const p = patchMap()[k + '/' + v]; return p ? '<button type="button" class="tag vt vt-' + p.tag + ' ptag" data-patch="' + esc(p.ver) + '|' + p.s + '|' + p.i + '" title="' + esc(p.ver) + ' 패치노트에서 보기">' + esc(p.ver) + ' ' + p.tag + '</button>' : ''; };
+  const PT_ICO = { 상향: '▲', 하향: '▼', 변경: '◆', 교체: '⇄', 신규: '✦', 고침: '✎' }; //패치 딱지 (사용자 2026-11-21 "상향 표시는 다른 디자인"): 카드 오른쪽 위 둥근 배지
+  const patchTag = (k, v) => { const p = patchMap()[k + '/' + v]; return p ? '<button type="button" class="tag vt vt-' + p.tag + ' ptag" data-patch="' + esc(p.ver) + '|' + p.s + '|' + p.i + '" title="' + esc(p.ver) + ' 패치노트에서 보기"><i aria-hidden="true">' + (PT_ICO[p.tag] || '•') + '</i><b>' + p.tag + '</b><small>' + esc(p.ver) + '</small></button>' : ''; };
   /* 엘리트·우두머리·특수 적이 나오는 편성 (사용자 2026-11-20): 편성 이름 "A + B×3"에서 이 적 이름이 들어간 것, 3개까지 */
   function encLine(v) {
     const e = EN[v]; if (!e || !e.grade) return '';
