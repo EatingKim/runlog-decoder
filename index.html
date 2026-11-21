@@ -737,6 +737,8 @@ html, body {
 .ev-fs { font-size: .74rem; color: var(--dust); padding-top: 8px; }
 .ev-fstep .ev-opt { padding-top: 6px; padding-bottom: 6px; }
 @media (max-width: 600px) { .ev-fstep { grid-template-columns: 1fr; gap: 4px; } .ev-fs { padding-top: 0; } }
+.ev-opt.short { padding-top: 5px !important; padding-bottom: 5px !important; align-items: center; }
+.ev-opt.short .ev-key { font-size: .7rem; }
 </style>
 </head>
 <body>
@@ -797,7 +799,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-21 21:13</p>
+  <p class="build-tag">해독기 판: 2026-11-21 21:17</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2592,11 +2594,11 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       if (has('저주')) /제거/.test(cl) ? add('curse', '저주', '−') : add('curse', '저주', '+', true);
       const relic = has('유물') || relicNames.some(n => cl.replace(/\s/g, '').includes(n));
       if (relic) /잃/.test(cl) ? add('relic', '유물', '−', true) : /변경|교체/.test(cl) ? add('relic', '유물 변경', '') : add('relic', '유물', '+');
-      if (has('물약')) /잃/.test(cl) ? add('pot', '물약', '−', true) : /바꾼/.test(cl) ? add('pot', '물약 변경', '') : add('pot', '물약', '+');
+      if (has('물약')) /잃/.test(cl) ? add('pot', '물약', '−', true) : /바꾸|바꾼/.test(cl) ? add('pot', '물약 변경', '') : add('pot', '물약', '+');
       if (has('모듈')) {
         if (/제거/.test(cl)) add('mod', '모듈', '−');
         else if (/소멸|금지/.test(cl)) add('mod', '모듈', '−', true);
-        else if (/바꾼|옮긴|합성|그대로/.test(cl)) { if (!/그대로/.test(cl)) add('mod', '모듈 변경', ''); }
+        else if (/바꾸|바꾼|옮긴|합성|그대로/.test(cl)) { if (!/그대로/.test(cl)) add('mod', '모듈 변경', ''); }
         else if (has('하자')) add('mod', '하자 모듈', '+', true);
         else add('mod', '모듈', '+');
       }
@@ -2626,8 +2628,8 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     if (v === id.camp) return [{ h: '읽는 동안 (' + ((C.campReads || 4) - 1) + '번)', rows: [[1, T(C.campRead)], [2, T(C.campLeave)]] }, { h: (C.campReads || 4) + '번째', rows: [[1, T(C.campLast)], [2, T(C.campLeave)]] }];
     if (v === id.merchant) {
       const K = C.packKinds || 5, pk = C.packKind || [];
-      return [{ h: '꾸러미 종류 (살 때마다 하나, 시드로 미리 정해짐)', rows: pk.slice(0, K).map((t, i) => ['·', t]) },
-        { h: C.packTimes + '번째 꾸러미 (덤 유물)', rows: pk.slice(K, 2 * K).map(t => ['·', t]) },
+      return [{ h: '꾸러미 종류 (살 때마다 하나, 시드로 미리 정해짐)', rows: pk.slice(0, K).map(t => ['·', t, 1]) }, //결과만 짧게 (사용자 2026-11-21)
+        { h: C.packTimes + '번째 꾸러미 (덤 유물)', rows: pk.slice(K, 2 * K).map(t => ['·', t, 1]) },
         { h: '한 번 산 뒤', rows: [[2, T(C.packLeave)]] }];
     }
     if (v === id.bag) return [{ h: '한 번 뒤진 뒤', rows: [[2, T(C.bagLeave)]] }];
@@ -2728,12 +2730,13 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       /* 결과 종류 딱지 (사용자 2026-11-20 "밋밋함"): 결과 글에 나오는 말로 골드·체력·유물·저주·모듈·물약·하수인·강화를 색 딱지로 */
       const RES = [['골드', 'gold', '골드'], ['저주', 'curse', '저주'], ['유물', 'relic', '유물'], ['물약', 'pot', '물약'], ['모듈', 'mod', '모듈'], ['하수인', 'min', '하수인'], ['강화', 'up', '강화'], ['체력', 'hp', '체력']];
       const resTags = r => evRes(r).map(evTag).join('');
-      const optRow = (key, t) => { const m = /^(.*?)\s*\((.*)\)\s*$/.exec(t), act = m ? m[1] : t, res = m ? m[2] : '';
+      const optRow = (key, t, short) => { const m = /^(.*?)\s*\((.*)\)\s*$/.exec(t), act = m ? m[1] : t, res = m ? m[2] : '';
+        if (short && res) return '<div class="ev-opt short"><span class="ev-key">' + key + '</span><div><div class="ev-res"><span class="ev-tags">' + resTags(res) + '</span>' + linkName(fmtDesc(res)) + '</div></div></div>';
         return '<div class="ev-opt"><span class="ev-key">' + key + '</span><div><div class="ev-act">' + esc(act) + '</div>' +
           (res ? '<div class="ev-res"><span class="ev-tags">' + resTags(res) + '</span>' + linkName(fmtDesc(res)) + '</div>' : '') + '</div></div>'; };
       extra = '<div class="ev-opts">' + evChoices(v).map((t, i) => optRow(i + 1, t)).join('') + '</div>';
       const fl = evFollow(v);
-      if (fl.length) extra += '<div class="ev-follow"><div class="ev-fh">이어지는 선택지</div>' + fl.map(b => '<div class="ev-fstep"><div class="ev-fs">' + esc(b.h) + '</div><div class="ev-opts">' + b.rows.filter(r => r[1]).map(r => optRow(r[0], r[1])).join('') + '</div></div>').join('') + '</div>';
+      if (fl.length) extra += '<div class="ev-follow"><div class="ev-fh">이어지는 선택지</div>' + fl.map(b => '<div class="ev-fstep"><div class="ev-fs">' + esc(b.h) + '</div><div class="ev-opts">' + b.rows.filter(r => r[1]).map(r => optRow(r[0], r[1], r[2])).join('') + '</div></div>').join('') + '</div>';
     } else if (k === 'term') {
       const g = termGroup(v);
       cls = KW_CLS[name] ? 'kw-' + KW_CLS[name] : ['gk', 'gs', 'gt'][g];
@@ -2745,7 +2748,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       const g = gradeOf(k, v);
       cls = k === 'curse' ? 'gc' : gradeCls(k, g);
       img = IMG(k, v);
-      if ((k === 'relic' || k === 'module' || k === 'minion') && classOf(k, v) > 1) tags.push(classTag(v, k)); //공용·전사 전용은 거의 전부라 딱지 생략 (사용자 2026-11-20), 술사·환사 전용만 표시. 직업 필터로 구분
+      if ((k === 'relic' || k === 'minion') && classOf(k, v) > 1 || k === 'module' && classOf(k, v) > 0) tags.push(classTag(v, k)); //모듈은 전사 전용도 표시 (사용자 2026-11-21) //공용·전사 전용은 거의 전부라 딱지 생략 (사용자 2026-11-20), 술사·환사 전용만 표시. 직업 필터로 구분
       const pt = patchTag(k, v); if (pt) tags.unshift(pt);
       if (k === 'module') {
         const mm = MM(v);
