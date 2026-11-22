@@ -793,12 +793,20 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
 .hist-btn i { font-style: normal; font-size: .6rem; transition: transform .15s; }
 .hist-btn:hover { color: var(--bone); border-color: var(--dust) !important; }
 .ec.hopen .hist-btn i { transform: rotate(180deg); }
-.hist-list { display: none; list-style: none; margin: 8px 0 0; padding: 0 0 0 10px; border-left: 2px solid color-mix(in srgb, var(--c, var(--void)) 40%, var(--seam)); }
-.ec.hopen .hist-list { display: grid; gap: 8px; }
-.hist-list li { display: grid; grid-template-columns: 3.6em 1fr; gap: 8px; align-items: start; position: relative; }
-.hist-list li::before { content: ""; position: absolute; left: -15px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--rock); border: 2px solid color-mix(in srgb, var(--c, var(--void)) 70%, var(--seam)); }
-.hist-list li:first-child::before { background: color-mix(in srgb, var(--c, var(--void)) 70%, var(--seam)); }
-.hist-list .hv { font-size: .7rem; font-weight: 800; color: var(--bone); padding-top: 1px; }
+.hist-list { display: none; list-style: none; margin: 10px 0 0; padding: 0; }
+.ec.hopen .hist-list { display: grid; gap: 0; }
+/* 세로 줄과 점: 점 중심(7px, 판 글자 줄 가운데)에 줄을 맞추고, 줄은 다음 점까지만 (사용자 2026-11-22 "노드 디자인이 딱 안 맞음") */
+.hist-list li { --dot: color-mix(in srgb, var(--c, var(--void)) 75%, var(--seam)); display: grid; grid-template-columns: 16px 3.4em 1fr; column-gap: 6px; align-items: start; position: relative; padding-bottom: 10px; }
+.hist-list li > * { grid-row: 1; }
+.hist-list li > .hv { grid-column: 2; }
+.hist-list li > div { grid-column: 3; min-width: 0; }
+.hist-list li::before { content: ""; position: absolute; left: 3px; top: 4px; width: 10px; height: 10px; box-sizing: border-box; border-radius: 50%; background: var(--rock); border: 2px solid var(--dot); z-index: 1; font-size: .7rem; }
+.hist-list li::after { content: ""; position: absolute; left: 7px; top: 9px; bottom: -9px; width: 2px; background: color-mix(in srgb, var(--dot) 55%, transparent); font-size: .7rem; }
+.hist-list li:last-child::after { display: none; }
+.hist-list li:last-child { padding-bottom: 0; }
+.hist-list li:first-child::before { background: var(--dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot) 25%, transparent); }
+.hist-list li.wip::before { border-style: dashed; background: var(--rock); box-shadow: none; }
+.hist-list .hv { font-size: .7rem; font-weight: 800; color: var(--bone); line-height: 1.6; }
 .hist-list li.wip .hv { color: var(--dust); font-weight: 400; }
 .hist-list p { margin: 0 !important; font-size: .76rem !important; line-height: 1.5; }
 .hist-list li:not(:first-child) p { color: var(--dust) !important; }
@@ -864,7 +872,7 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-22 19:17</p>
+  <p class="build-tag">해독기 판: 2026-11-22 19:30</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
