@@ -13,7 +13,8 @@
    한 가지 세계로 고정한 어두운 화면: 공허 동굴 바탕 + 게임 안 글자색(하급 흰·중급 파랑·상급 노랑·하자 붉은 보라·이벤트 청록) */
 :root {
   color-scheme: dark;
-  --kw-hit: #ff8a7a; --kw-cyc: #5fd3cc; --kw-open: #ffb24d; --kw-hurt: #c58bff; --kw-win: #f2d14b; --kw-bond: #79d39a; --kw-death: #a9a3b5; --kw-cast: #6ea6ff; --kw-soul: #e58cf0;
+  /* 키워드 색 (사용자 2026-11-22): 공용은 저마다, 전사 전용(주기·타격·피격)은 전사 색, 술사 전용(사망·환류·시전)은 술사 색, 환사(제물·붕괴·연결)는 환사 색 */
+  --kw-open: #6fb6ff; --kw-bond: #79d39a; --kw-win: #f2d14b; --kw-hit: #ff9150; --kw-cyc: #ff9150; --kw-hurt: #ff9150; --kw-death: #c58bff; --kw-soul: #c58bff; --kw-cast: #c58bff; --kw-sum: #5fd3cc;
   --ground: #131118; --rock: #1b1822; --seam: #2c2836; --dust: #8a8497; --bone: #ddd8e6;
   --void: #a48bff;
   --g0: #ece9f2; --g1: #6ea6ff; --g2: #f2d14b; --g3: #d65a86; --cyan: #5fd3cc;
@@ -526,7 +527,7 @@ mark.d-old .kw { outline: 1px solid #ff8a8a; }
 .c0 { --c: var(--dust); } .c1 { --c: var(--elite); } .c2 { --c: #c58bff; } .c3 { --c: var(--cyan); }
 .tag.ctag { color: var(--c); border-color: color-mix(in srgb, var(--c) 45%, transparent); }
 .ge { --c: var(--elite); } .gb { --c: var(--boss); } .ga { --c: var(--void); } .gk { --c: var(--void); } .gs { --c: #ff8a7a; } .gt { --c: var(--cyan); }
-.kw-hit { --c: var(--kw-hit); } .kw-cyc { --c: var(--kw-cyc); } .kw-open { --c: var(--kw-open); } .kw-hurt { --c: var(--kw-hurt); } .kw-win { --c: var(--kw-win); } .kw-bond { --c: var(--kw-bond); } .kw-death { --c: var(--kw-death); } .kw-cast { --c: var(--kw-cast); } .kw-soul { --c: var(--kw-soul); }
+.kw-hit { --c: var(--kw-hit); } .kw-cyc { --c: var(--kw-cyc); } .kw-open { --c: var(--kw-open); } .kw-hurt { --c: var(--kw-hurt); } .kw-win { --c: var(--kw-win); } .kw-bond { --c: var(--kw-bond); } .kw-death { --c: var(--kw-death); } .kw-cast { --c: var(--kw-cast); } .kw-soul { --c: var(--kw-soul); } .kw-sum { --c: var(--kw-sum); }
 .ency-grades button.tint { color: var(--c); }
 .ency-roles { margin-top: -4px; padding-left: 10px; border-left: 2px solid var(--seam); }
 .ency-roles button b { font-weight: 400; font-size: 0.68rem; color: var(--dust); margin-left: 4px; }
@@ -545,7 +546,7 @@ mark.d-old .kw { outline: 1px solid #ff8a8a; }
 .ec h3 + .st { margin-top: 3px; }
 .kw { --k: var(--dust); display: inline-block; padding: 0 6px; margin-right: 2px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; line-height: 1.5; color: var(--k); background: color-mix(in srgb, var(--k) 16%, transparent); border: 1px solid color-mix(in srgb, var(--k) 35%, transparent); }
 .kw[data-kw] { cursor: pointer; }
-.kw.hit { --k: #ff8a7a; } .kw.cyc { --k: var(--cyan); } .kw.open { --k: #ffb24d; } .kw.hurt { --k: #c58bff; } .kw.win { --k: var(--g2); } .kw.bond { --k: #79d39a; } .kw.death { --k: #a9a3b5; } .kw.cast { --k: var(--g1); } .kw.soul { --k: var(--kw-soul); }
+.kw.hit { --k: var(--kw-hit); } .kw.cyc { --k: var(--kw-cyc); } .kw.open { --k: var(--kw-open); } .kw.hurt { --k: var(--kw-hurt); } .kw.win { --k: var(--kw-win); } .kw.bond { --k: var(--kw-bond); } .kw.death { --k: var(--kw-death); } .kw.cast { --k: var(--kw-cast); } .kw.soul { --k: var(--kw-soul); } .kw.sum { --k: var(--kw-sum); }
 .ec p b { color: var(--bone); font-weight: 700; }
 .ec p .up { color: var(--dust); font-size: 0.92em; }
 .ec-tags .tag.kwt { color: var(--k); border-color: color-mix(in srgb, var(--k) 40%, transparent); }
@@ -829,7 +830,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-22 12:54</p>
+  <p class="build-tag">해독기 판: 2026-11-22 13:35</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2686,6 +2687,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     const out = eList(k).filter(v => (!q || encyText(k, v).includes(q)) && (!useGroup || !ency.g.size || ency.g.has(eGroup(k, v))) &&
       (!useGroup || !ency.r.size || !subOf(k) || subOf(k)(v).some(x => ency.r.has(x))) && (!useGroup || k !== 'module' || !ency.c.size || ency.c.has(classOf(k, v))) && (!useGroup || !ency.patch || !!patchMap()[k + '/' + v]));
     if (k === 'module' || k === 'relic' || k === 'minion') out.sort(byClassName(k));
+    if (k === 'term') { const KO = Object.keys(KW_CLS); const ti = v => { const i = KO.indexOf(TM[v].name); return i < 0 ? 50 : i; }; out.sort((a, b) => ti(a) - ti(b)); } //용어 탭 키워드도 공용 → 전사 → 술사 → 환사, 발동 조건이 아닌 소멸·고정·하자는 뒤로 (2026-11-22)
     /* 정렬 (사용자 2026-11-20): 발동 조건순(모듈) · 최근 변경순(바뀐 것 먼저, 상향 → 하향 → 변경 → 교체 → 신규 → 고침). 묶음(등급·막) 안에서 */
     if (ency.sort === 'kw' && k === 'module') { const KO = Object.keys(KW_CLS); out.sort((a, b) => kwIdx(a, KO) - kwIdx(b, KO)); }
     if (ency.sort === 'patch') { const TO = ['상향', '하향', '변경', '교체', '신규', '고침']; const pm = patchMap(); const pi = v => { const p = pm[k + '/' + v]; return p ? TO.indexOf(p.tag) : 99; }; out.sort((a, b) => pi(a) - pi(b)); }
@@ -2693,7 +2695,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   }
   /* 설명 꾸미기: "타격 2:" 같은 발동 조건은 키워드 색 딱지, 상태이상·용어 이름은 점선 밑줄(올리면 설명, 누르면 용어 카드),
    * 숫자는 굵게, 강화 괄호 "(+2)"는 흐리게 */
-  const KW_CLS = { 개전: 'open', 결속: 'bond', 주기: 'cyc', 타격: 'hit', 피격: 'hurt', 사망: 'death', 승전: 'win', 환류: 'soul', 시전: 'cast', 소생: 'cast', 제물: 'cast', 붕괴: 'cast', 연결: 'cast' };
+  const KW_CLS = { 개전: 'open', 결속: 'bond', 승전: 'win', 주기: 'cyc', 타격: 'hit', 피격: 'hurt', 사망: 'death', 환류: 'soul', 시전: 'cast', 소생: 'cast', 제물: 'sum', 붕괴: 'sum', 연결: 'sum' }; //순서 = 공용 → 전사 → 술사 → 환사 (사용자 2026-11-22)
   const LINK_TERMS = ['화상', '산성', '봉인', '무장해제', '산란', '기생', '분열', '재생', '충전', '부활', '자해', '면역', '유충', '거인', '불굴', '환영', '약화', '흡수', '부드러움', '발열', '얽힘', '망각', '흡혈', '소멸', '점화', '명상'].filter(n => TM_BY_NAME[n]);
   const DESC_RE = new RegExp('(' + Object.keys(KW_CLS).join('|') + ')(\\s*\\d+)?\\s*:|(' + LINK_TERMS.sort((a, b) => b.length - a.length).join('|') + ')|(\\(\\+?[\\d.]+%?\\))|(\\d+(?:\\.\\d+)?%?)', 'g');
   function fmtDesc(t, self) {
