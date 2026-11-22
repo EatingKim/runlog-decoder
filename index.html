@@ -784,6 +784,8 @@ html, body {
 /* 동의 칸: 그냥 네모 (사선 모서리 없이) */
 .consent { clip-path: none !important; border-radius: 6px !important; border-width: 1px !important; }
 .consent::before, .consent::after { display: none !important; }
+/* 버튼 글자는 끌어도 선택되지 않게 (사용자 2026-11-22) */
+button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head, [data-pop] { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 </style>
 </head>
 <body>
@@ -844,7 +846,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-22 14:39</p>
+  <p class="build-tag">해독기 판: 2026-11-22 14:42</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
