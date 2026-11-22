@@ -757,6 +757,7 @@ html, body {
 .views button { position: relative; transition: color .2s; }
 .views button.on { background: transparent !important; }
 @media (prefers-reduced-motion: reduce) { .views-pill { transition: none; } }
+.views { clip-path: none !important; border-radius: 999px !important; } /* 선택 표시가 둥글어서 테두리도 둥글게 (사용자 2026-11-22) */
 </style>
 </head>
 <body>
@@ -817,7 +818,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-22 12:33</p>
+  <p class="build-tag">해독기 판: 2026-11-22 12:40</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
