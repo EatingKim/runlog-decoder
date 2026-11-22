@@ -420,10 +420,15 @@ details.raw summary { font-size: 0.78rem; }
 details.vd { border-top: 1px solid var(--seam); }
 details.vd summary { cursor: pointer; padding: 8px 2px; font-size: 0.88rem; font-weight: 700; list-style-position: inside; }
 details.vd summary b { font-weight: 400; color: var(--dust); font-size: 0.76rem; margin-left: 4px; }
-.ency-sort { display: inline-flex; align-items: center; gap: 4px; font-size: 0.76rem; }
-.ency-sort .dim { color: var(--dust); margin-right: 2px; }
-.ency-sort button { border: 1px solid var(--seam); background: transparent; color: var(--dust); padding: 2px 9px; font: inherit; font-size: 0.76rem; cursor: pointer; }
-.ency-sort button.on { border-color: var(--void); color: var(--bone); }
+.ency-sort { display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; }
+.ency-sort .sort-lbl { color: var(--dust); font-size: .9rem; }
+.ency-sort .seg { position: relative; isolation: isolate; display: inline-flex; padding: 2px; border: 1px solid var(--seam); border-radius: 999px !important; clip-path: none !important; background: var(--well); }
+.ency-sort .seg-pill { position: absolute; left: 0; top: 2px; bottom: 2px; z-index: -1; border-radius: 999px; background: color-mix(in srgb, var(--void) 26%, var(--rock));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--void) 70%, transparent); transition: transform .25s cubic-bezier(.3, .7, .2, 1), width .25s cubic-bezier(.3, .7, .2, 1); }
+.ency-sort .seg button { border: 0 !important; clip-path: none !important; border-radius: 999px !important; background: transparent !important; color: var(--dust); padding: 2px 11px; font: inherit; font-size: 0.76rem; cursor: pointer; transition: color .2s; }
+.ency-sort .seg button:hover { color: var(--bone); }
+.ency-sort .seg button.on { color: var(--bone); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .ency-sort .seg-pill { transition: none; } }
 .eg.eg-ev { grid-template-columns: 1fr; gap: 6px; }
 .ec.ev { --c: var(--cyan); display: block; padding: 0; background: linear-gradient(160deg, color-mix(in srgb, var(--cyan) 8%, var(--rock)) 0%, var(--rock) 40%); }
 .ec.ev { position: relative; }
@@ -457,9 +462,15 @@ details.vd summary b { font-weight: 400; color: var(--dust); font-size: 0.76rem;
 .enc-line { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; font-size: 0.74rem; }
 .enc-line span:not(.dim) { border: 1px solid var(--seam); padding: 0 6px; color: color-mix(in srgb, var(--bone) 80%, var(--dust)); }
 .enc-line .dim { color: var(--dust); }
-.ency-patch { border: 1px solid var(--seam); background: transparent; color: var(--dust); padding: 3px 12px; font: inherit; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
-.ency-patch b { font-weight: 400; font-size: 0.72rem; margin-left: 4px; }
-.ency-patch.on { border-color: #6fd08c; color: #6fd08c; background: color-mix(in srgb, #6fd08c 10%, transparent); }
+/* 바뀐 것만: 켜고 끄는 스위치 모양 (2026-11-22) */
+.ency-patch { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--seam) !important; clip-path: none !important; border-radius: 999px !important; background: var(--well) !important; color: var(--dust); padding: 3px 12px 3px 5px; font: inherit; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+.ency-patch .sw { position: relative; width: 26px; height: 14px; border-radius: 999px; background: color-mix(in srgb, var(--dust) 35%, transparent); transition: background .2s; flex: none; }
+.ency-patch .sw::after { content: ""; position: absolute; left: 2px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--bone); transition: transform .2s cubic-bezier(.3, .7, .2, 1); }
+.ency-patch b { font-weight: 400; font-size: 0.7rem; margin-left: -2px; opacity: .8; }
+.ency-patch:hover { color: var(--bone); }
+.ency-patch.on { color: #6fd08c; border-color: color-mix(in srgb, #6fd08c 55%, transparent) !important; }
+.ency-patch.on .sw { background: #6fd08c; }
+.ency-patch.on .sw::after { transform: translateX(12px); background: #10251a; }
 .ec-tags .ptag { background: transparent; cursor: pointer; font: inherit; font-size: 0.66rem; padding: 0 5px; border-color: currentColor !important; }
 .ec-tags .ptag.vt-상향 { color: #6fd08c !important; } .ec-tags .ptag.vt-하향 { color: #ff7a7a !important; } .ec-tags .ptag.vt-변경 { color: #e8c35a !important; } .ec-tags .ptag.vt-교체 { color: #b99cff !important; } .ec-tags .ptag.vt-신규 { color: #6fb6ff !important; } .ec-tags .ptag.vt-고침 { color: #9aa3b2 !important; }
 .vi.flash { animation: viflash 2s ease-out; }
@@ -818,7 +829,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-22 12:40</p>
+  <p class="build-tag">해독기 판: 2026-11-22 12:54</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2802,13 +2813,25 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       (tags.length ? '<div class="ec-tags">' + tags.join('') + '</div>' : '') + st +
       (d ? '<p' + (k === 'event' ? ' class="ev-story"' : '') + '>' + fmtDesc(d, k === 'term' ? name : '') + '</p>' : k === 'minion' || k === 'enemy' ? '' : '<p class="dim">설명 없음</p>') + (k === 'enemy' ? encLine(v) : '') + extra + '</div></article>';
   }
+  let segLast = null; //정렬 선택 표시의 직전 자리 (다시 그려도 거기서 미끄러져 옴)
+  function segPill() {
+    const seg = document.querySelector('#ency-sort .seg'), pill = seg && seg.querySelector('.seg-pill'), on = seg && seg.querySelector('button.on');
+    if (!pill || !on) return;
+    const to = { x: on.offsetLeft, w: on.offsetWidth };
+    if (segLast) { pill.style.transition = 'none'; pill.style.width = segLast.w + 'px'; pill.style.transform = 'translateX(' + segLast.x + 'px)'; pill.offsetWidth; pill.style.transition = ''; }
+    pill.style.width = to.w + 'px'; pill.style.transform = 'translateX(' + to.x + 'px)';
+    segLast = to;
+  }
   function encyRender() {
     const k = ency.cat;
     { const pm = patchMap(), n = eList(k).filter(v => pm[k + '/' + v]).length, b = $('ency-patch');
-      b.hidden = !n; b.className = 'ency-patch' + (ency.patch ? ' on' : ''); b.innerHTML = PATCH_VER + ' 바뀐 것만 <b>' + n + '</b>';
+      b.hidden = !n; b.className = 'ency-patch' + (ency.patch ? ' on' : ''); b.setAttribute('aria-pressed', !!ency.patch); b.innerHTML = '<span class="sw" aria-hidden="true"></span>' + PATCH_VER + ' 바뀐 것만 <b>' + n + '</b>';
       const opts = [['', '이름순']].concat(k === 'module' ? [['kw', '발동 조건순']] : []).concat(n ? [['patch', '최근 변경순']] : []);
       if (!opts.some(o => o[0] === (ency.sort || ''))) ency.sort = '';
-      $('ency-sort').innerHTML = opts.length > 1 ? '<span class="dim">정렬</span>' + opts.map(([v, t]) => '<button type="button" data-sort="' + v + '" class="' + ((ency.sort || '') === v ? 'on' : '') + '">' + t + '</button>').join('') : ''; }
+      /* 정렬: 둥근 묶음 버튼 + 미끄러지는 선택 표시 (사용자 2026-11-22 "정렬 쪽 UI도 디자인을 바꾸자") */
+      $('ency-sort').innerHTML = opts.length > 1 ? '<span class="sort-lbl" aria-hidden="true">⇅</span><span class="seg" role="group" aria-label="정렬"><span class="seg-pill" aria-hidden="true"></span>' +
+        opts.map(([v, t]) => '<button type="button" data-sort="' + v + '" aria-pressed="' + ((ency.sort || '') === v) + '" class="' + ((ency.sort || '') === v ? 'on' : '') + '">' + t + '</button>').join('') + '</span>' : '';
+      segPill(); }
     $('ency-cats').innerHTML = ENCY_CATS.map(([c, t]) => '<button type="button" role="tab" data-cat="' + c + '" aria-selected="' + (c === k) + '" class="' + (c === k ? 'on' : '') + '">' + t + '<b>' + encyIds(c, false).length + '</b></button>').join('');
     const gs = k === 'curse' ? [] : [...new Set(eList(k).map(v => eGroup(k, v)))].sort((a, b) => a - b);
     [...ency.g].forEach(g => { if (!gs.includes(g)) ency.g.delete(g); });
