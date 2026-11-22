@@ -751,6 +751,12 @@ html, body {
 .ec:has(.ptag) > div > .ec-tags { margin-right: 86px !important; }
 .ec:has(.ptag) > div > h3:has(+ .ec-tags) { padding-right: 0; }
 .ec .ec-tags:has(> .ptag:only-child) { margin: 0 !important; height: 0; flex-basis: 0 !important; }
+.views { position: relative; isolation: isolate; }
+.views-pill { position: absolute; left: 3px; top: 3px; bottom: 3px; width: 0; opacity: 0; z-index: -1; background: var(--void); border-radius: 999px;
+  transition: transform .28s cubic-bezier(.3, .7, .2, 1), width .28s cubic-bezier(.3, .7, .2, 1); }
+.views button { position: relative; transition: color .2s; }
+.views button.on { background: transparent !important; }
+@media (prefers-reduced-motion: reduce) { .views-pill { transition: none; } }
 </style>
 </head>
 <body>
@@ -758,7 +764,7 @@ html, body {
 <div class="wrap">
   <div class="top">
     <div class="brand">상실의 동굴 · <b>런 기록 해독기</b></div>
-    <nav class="views" aria-label="화면"><button type="button" data-view="dec" class="on">해독기</button><button type="button" data-view="ency">백과사전</button><button type="button" data-view="ver">아카이브</button></nav>
+    <nav class="views" aria-label="화면"><span class="views-pill" aria-hidden="true"></span><button type="button" data-view="dec" class="on">해독기</button><button type="button" data-view="ency">백과사전</button><button type="button" data-view="ver">아카이브</button></nav>
   </div>
 
   <div id="v-dec">
@@ -811,7 +817,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-21 21:31</p>
+  <p class="build-tag">해독기 판: 2026-11-22 12:33</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
@@ -2836,6 +2842,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     $('v-dec').hidden = v !== 'dec'; $('v-ency').hidden = !e; $('v-ver').hidden = v !== 'ver';
     if (v === 'ver') verRender();
     document.querySelectorAll('.views button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+    movePill();
     hidePop();
   }
   /* 버전 보관소 (사용자 2026-11-17 "유즈맵 아카이브"): versions.json */
@@ -2954,6 +2961,17 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   }
   function goEncy(k, v) { location.hash = '#ency/' + k + (v !== undefined ? '/' + v : ''); }
   addEventListener('hashchange', applyHash);
+  /* 화면 탭 선택 색이 미끄러지듯 옮겨 감 (사용자 2026-11-22) */
+  function movePill(instant) {
+    const nav = document.querySelector('.views'), pill = nav && nav.querySelector('.views-pill'), on = nav && nav.querySelector('button.on');
+    if (!pill || !on) return;
+    if (instant) pill.style.transition = 'none';
+    pill.style.width = on.offsetWidth + 'px'; pill.style.transform = 'translateX(' + (on.offsetLeft - 3) + 'px)'; pill.style.opacity = 1;
+    if (instant) { pill.offsetWidth; pill.style.transition = ''; }
+  }
+  addEventListener('resize', () => movePill(true));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => movePill(true));
+  requestAnimationFrame(() => movePill(true));
   document.querySelector('.views').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.view === 'ency') { if ($('v-ency').hidden) goEncy(ency.cat); }
