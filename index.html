@@ -770,6 +770,20 @@ html, body {
 .views button.on { background: transparent !important; }
 @media (prefers-reduced-motion: reduce) { .views-pill { transition: none; } }
 .views { clip-path: none !important; border-radius: 999px !important; } /* 선택 표시가 둥글어서 테두리도 둥글게 (사용자 2026-11-22) */
+/* 사진 올리기 버튼: 누름직한 입체 버튼 (사용자 2026-11-22) */
+.up-act { gap: 10px; }
+.up-act .pick-btn, .up-act button { clip-path: none !important; border-radius: 10px !important; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px 7px !important; font-size: .88rem !important; font-weight: 700 !important;
+  border: 1px solid transparent !important; transform: translateY(0); transition: transform 80ms, box-shadow 80ms, background-color .15s, filter .15s !important; }
+.up-act .bi { font-size: .8rem; line-height: 1; opacity: .9; }
+.up-act .pick-btn { background: var(--void) !important; color: #120d22 !important; box-shadow: 0 3px 0 color-mix(in srgb, var(--void) 45%, #000), 0 6px 14px rgba(0,0,0,.35); }
+.up-act button.go { background: var(--ok) !important; color: #0e2116 !important; box-shadow: 0 3px 0 color-mix(in srgb, var(--ok) 45%, #000), 0 6px 14px rgba(0,0,0,.35); }
+.up-act button.sub { background: color-mix(in srgb, var(--bone) 10%, var(--rock)) !important; color: var(--bone) !important; border-color: var(--seam) !important; box-shadow: 0 3px 0 #0a0b0f, 0 6px 14px rgba(0,0,0,.3); }
+.up-act .pick-btn:hover, .up-act button:hover { filter: brightness(1.1); }
+.up-act .pick-btn:active, .up-act button:active { transform: translateY(2px) !important; box-shadow: 0 1px 0 rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.3) !important; }
+.up-act button:disabled { opacity: .35; box-shadow: none !important; filter: grayscale(.6); }
+/* 동의 칸: 그냥 네모 (사선 모서리 없이) */
+.consent { clip-path: none !important; border-radius: 6px !important; border-width: 1px !important; }
+.consent::before, .consent::after { display: none !important; }
 </style>
 </head>
 <body>
@@ -791,9 +805,9 @@ html, body {
   <section class="upload" id="drop" aria-label="기록 화면 스크린샷 올리기">
     <div class="up-head">
       <div class="up-act">
-        <label class="pick-btn">사진 가져오기<input type="file" id="file" accept="image/*" multiple></label>
-        <button type="button" id="btn-unq" disabled>사진 모두 빼기</button>
-        <button type="button" class="go" id="btn-go" disabled>변환</button>
+        <label class="pick-btn"><span class="bi" aria-hidden="true">＋</span>사진 가져오기<input type="file" id="file" accept="image/*" multiple></label>
+        <button type="button" id="btn-unq" class="sub" disabled><span class="bi" aria-hidden="true">✕</span>사진 모두 빼기</button>
+        <button type="button" class="go" id="btn-go" disabled><span class="bi" aria-hidden="true">▶</span>변환</button>
       </div>
     </div>
     <div class="consent" id="consent" hidden>
@@ -830,7 +844,7 @@ html, body {
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-22 13:35</p>
+  <p class="build-tag">해독기 판: 2026-11-22 14:39</p>
   </div>
 
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
