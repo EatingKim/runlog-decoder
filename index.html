@@ -902,7 +902,7 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-24 18:11</p>
+  <p class="build-tag">해독기 판: 2026-11-24 18:23</p>
   </div>
 
   <section class="ctest" id="v-test" hidden aria-label="색 판독 시험">
@@ -3847,25 +3847,25 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       if (colored) { //글자 + 색 화면 (2026-11-24): 판독기가 못 맞춘 줄만 AI 줄로 바꿔 봄 (AI 줄이 확인 글자로 맞을 때만)
         const ai = j.pages || [], rows = [];
         let used = 0;
-        const aiRow = t => { const m = /^(\S+) (\S)\|(\d+)$/.exec(t || ''); if (!m) return null;
-          const L = [...m[1]].map(ch => D.COL_ALPHA.indexOf(ch)), Cs = [...m[3]].map(Number);
-          return { L, C: Cs.slice(0, L.length), KL: D.COL_ALPHA.indexOf(m[2]), KC: Cs[L.length], lAlts: L.map(() => []), cAlts: L.map(() => []), kLAlts: [], kCAlts: [] }; };
+        /* AI는 글자만 (색은 판독기가 잰 색을 씀, 판독기의 색은 시험에서 다 맞음). 글자 수가 판독기 줄과 같을 때만 */
         const good = row => { const st = row && D.repairColorLine(row).status; return st === 'ok' || st === 'fixed'; };
         aiPages.forEach((pg, pi) => {
-          const al = ai[pi] || [], same = al.length === pg.crows.length;
-          /* 판독기가 줄을 놓친 쪽(줄 수가 다름): AI 줄이 모두 확인 글자로 맞으면 그 쪽은 AI 줄을 씀 */
-          if (!same && al.length && al.every(t => good(aiRow(t)))) { al.forEach(t => rows.push(aiRow(t))); used += al.length; return; }
+          const al = ai[pi] || [];
+          /* 쪽 안에서 줄 맞추기: 순서대로 보며 글자 수가 같은 AI 줄을 짝지음 (AI가 줄을 빼먹어도 뒤가 밀리지 않게 한 줄 앞뒤까지 봄) */
+          let ai0 = 0;
           pg.crows.forEach((c, li) => {
             let row = c.row;
             const st = D.repairColorLine(row).status;
-            if (same && st !== 'ok' && st !== 'fixed') {
-              const m = /^(\S+) (\S)\|(\d+)$/.exec(al[li] || '');
-              if (m) {
-                const L = [...m[1]].map(ch => D.COL_ALPHA.indexOf(ch)), Cs = [...m[3]].map(Number);
-                const ar = { L, C: Cs.slice(0, L.length), KL: D.COL_ALPHA.indexOf(m[2]), KC: Cs[L.length], lAlts: L.map(() => []), cAlts: L.map(() => []), kLAlts: [], kCAlts: [] };
-                const as = D.repairColorLine(ar).status;
-                if (as === 'ok' || as === 'fixed') { row = ar; used++; }
+            for (let k = ai0; k < Math.min(al.length, ai0 + 3); k++) {
+              const m = /^(\S+) (\S)$/.exec(al[k] || '');
+              if (!m || m[1].length !== row.L.length) continue;
+              ai0 = k + 1;
+              if (st !== 'ok' && st !== 'fixed') {
+                const L = [...m[1]].map(ch => D.COL_ALPHA.indexOf(ch));
+                const ar = Object.assign({}, row, { L, KL: D.COL_ALPHA.indexOf(m[2]), lAlts: L.map((v, i) => v === row.L[i] ? row.lAlts[i] || [] : [{ v: row.L[i], cost: 0.5 }]), kLAlts: [] });
+                if (good(ar)) { row = ar; used++; }
               }
+              break;
             }
             rows.push(row);
           });
