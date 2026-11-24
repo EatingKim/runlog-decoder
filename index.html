@@ -902,7 +902,7 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-24 18:09</p>
+  <p class="build-tag">해독기 판: 2026-11-24 18:11</p>
   </div>
 
   <section class="ctest" id="v-test" hidden aria-label="색 판독 시험">
@@ -2364,7 +2364,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       rel.forEach(v => { cnt[gr(v)]++; });
       let relicH = '<section class="panel"><div class="blk-h"><h2>유물 <span class="cnt num">' + rel.length + '</span> <small class="dim rel-note">얻은 순서</small></h2><span class="sum">' +
         ORD.filter(g => cnt[g]).map(g => '<span class="n' + g + '">' + GN[g] + ' ' + cnt[g] + '</span>').join(' · ') + '</span></div>' +
-        (rel.length ? '<div class="icons rel-ord">' + rel.map((v, ri) => '<span class="rel-cell">' + '<button type="button" class="ico rl g' + gr(v) + (IMG('relic', v) ? ' pic' : '') + '" data-pop="relic" data-v="' + v + '" aria-label="' + esc((named && N.relic[v]) || '유물 ' + v) + '">' + (IMG('relic', v) ? '<img alt="" src="' + IMG('relic', v) + '">' : '<i></i>') + '</button><small class="rel-at num">' + (relWhere[ri] || '·') + '</small></span>').join('') + '</div>' : '<p class="dim">없음</p>') +
+        (rel.length ? '<div class="icons rel-ord">' + rel.map((v, ri) => '<span class="rel-cell">' + '<button type="button" class="ico rl g' + gr(v) + (IMG('relic', v) ? ' pic' : '') + '" data-pop="relic" data-v="' + v + '" aria-label="' + esc((named && N.relic[v]) || '유물 ' + v) + '">' + (IMG('relic', v) ? '<img alt="" src="' + IMG('relic', v) + '">' : '<i></i>') + '</button></span>').join('') + '</div>' : '<p class="dim">없음</p>') +
         '<div class="subs"><div class="sub"><span class="k">저주</span>' + (end.curses.map(c => '<span class="hov" data-pop="curse" data-v="' + c.id + '" tabindex="0">' + nm('curse', c.id) + '</span> <span class="dim num">×' + c.n + '</span>').join(', ') || '<span class="dim">없음</span>') +
         '</div><div class="sub"><span class="k">물약</span>' + (end.potions.filter(v => v > 0).map(v => '<span class="hov" data-pop="potion" data-v="' + v + '" tabindex="0">' + nm('potion', v) + '</span>').join(', ') || '<span class="dim">없음</span>') + '</div></div></section>';
       /* 3) 덱 형태: 하수인과 모듈 */
