@@ -812,6 +812,20 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
 .hist-list li:not(:first-child) p { color: var(--dust) !important; }
 .hist-list .hn { display: block; font-size: .72rem; color: #e8c35a; margin-bottom: 2px; }
 .hist-list mark.d-new { background: color-mix(in srgb, #6fd08c 22%, transparent); color: #9ff0b8; border-radius: 2px; padding: 0 1px; }
+.ctest { display: grid; gap: 12px; padding: 4px 0 30px; }
+.ct-h { margin: 0; font-size: 1.1rem; } .ct-h small { font-size: .74rem; color: var(--dust); font-weight: 400; margin-left: 6px; }
+.ct-p { margin: 0; color: var(--dust); font-size: .86rem; }
+.ct-st { margin: 0; font-size: .86rem; } .ct-st .ok { color: var(--ok); } .ct-st .bad { color: var(--bad); }
+.ct-sub { margin: 8px 0 4px; font-size: .86rem; } .ct-sub small { color: var(--dust); font-weight: 400; }
+.ct-pg { margin: 2px 0; font-size: .8rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ct-pal { display: inline-flex; gap: 2px; } .ct-pal i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+.ct-wrap { overflow-x: auto; border: 1px solid var(--seam); border-radius: 6px; }
+.ct-tab { border-collapse: collapse; font-size: .76rem; width: 100%; }
+.ct-tab th, .ct-tab td { padding: 4px 8px; border-bottom: 1px solid var(--seam); text-align: left; white-space: nowrap; vertical-align: top; }
+.ct-tab td:last-child { white-space: normal; min-width: 14em; color: var(--dust); }
+.ct-glyphs { font-family: var(--f-mono); font-weight: 700; letter-spacing: .02em; background: #000; }
+.ct-ok b { color: var(--ok); } .ct-fixed b { color: #6fb6ff; } .ct-guess b { color: var(--warn); } .ct-bad b { color: var(--bad); }
+.ct-code { background: var(--well); border: 1px solid var(--seam); border-radius: 6px; padding: 10px; font-size: .72rem; overflow-x: auto; margin: 0; }
 </style>
 </head>
 <body>
@@ -819,7 +833,7 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
 <div class="wrap">
   <div class="top">
     <div class="brand">상실의 동굴 · <b>런 기록 해독기</b></div>
-    <nav class="views" aria-label="화면"><span class="views-pill" aria-hidden="true"></span><button type="button" data-view="dec" class="on">해독기</button><button type="button" data-view="ency">백과사전</button><button type="button" data-view="ver">아카이브</button></nav>
+    <nav class="views" aria-label="화면"><span class="views-pill" aria-hidden="true"></span><button type="button" data-view="dec" class="on">해독기</button><button type="button" data-view="ency">백과사전</button><button type="button" data-view="ver">아카이브</button><button type="button" data-view="test" id="tab-test" hidden>색 판독 시험</button></nav>
   </div>
 
   <div id="v-dec">
@@ -872,9 +886,17 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-22 19:30</p>
+  <p class="build-tag">해독기 판: 2026-11-24 14:03</p>
   </div>
 
+  <section class="ctest" id="v-test" hidden aria-label="색 판독 시험">
+    <h2 class="ct-h">색 판독 시험 <small>글자 + 색 기록 화면 (2026-11-24) · 시험용</small></h2>
+    <p class="ct-p">기록 보기 화면(글자 16개 × 색 8개)의 PC 스크린샷을 쪽 순서대로 올리면, 새 판독기로 읽은 결과를 줄마다 보여 줍니다. 여기서 읽은 기록은 시트에 저장하지 않습니다.</p>
+    <div class="up-act"><label class="pick-btn"><span class="bi" aria-hidden="true">＋</span>스크린샷 올리기<input type="file" id="ct-file" accept="image/*" multiple></label>
+      <button type="button" class="go" id="ct-open" disabled><span class="bi" aria-hidden="true">▶</span>해독기에서 열기</button></div>
+    <p class="ct-st" id="ct-st" role="status"></p>
+    <div id="ct-out"></div>
+  </section>
   <section class="vers" id="v-ver" hidden aria-label="아카이브">
     <h2 class="vers-h">아카이브</h2>
     <p class="vers-sub">상실의 동굴 판마다의 맵 파일과 바뀐 점. 버전을 누르면 펼쳐집니다.</p>
@@ -1405,7 +1427,122 @@ const RUNLOG_HIST = {"vers": ["2.0.0", "2.0.1"], "items": {"module/3": [["2.0.0"
     return { lines: fixed, log: log, ev: log.ev || [], stopAt: stopAt, problemLine, noEnd, sumOk: sp.sum, ok: stopAt < 0 && !problemLine && !noEnd && sp.sum !== false && fixed.every(f => f.status !== 'guess') };
   }
 
-  const api = { DIFF, CLASS, totalSum, splitSum, ROOM, CAMP, SHOP, GAIN, ENDING, UPG, ALPHA, LINE_SYMS, check, splitLines, repairLine, decodeSyms, decodeText };
+  /* ---------- 글자 + 색 화면 (2026-11-24, src/RunLog.eps Line_Make. 기록코드 버전은 그대로 V10) ----------
+   * 기록(5비트 글자·판 8 전체 확인값)은 그대로고 화면만 바뀜: 5비트 글자 4개(20비트) = 색 글자 3개
+   * 색 글자 = 글자 16개(COL_ALPHA) × 색 7개(앞 칸 색은 안 씀) = 112가지. 20비트 값 g → v0 = g % 112, v1 = g / 112 % 112, v2 = g / 12544
+   * 글자 = v % 16, 색 = (앞 칸 색 + 1 + v / 16) % 8 (줄 첫 칸의 앞 칸 색은 0). 한 줄 = 색 글자 72개(5비트 글자 96개) + 공백 + 확인 글자
+   * 확인 글자: 글자 = Σ 글자 번호 × (2i + 1) % 16, 색 = Σ 색 번호 × (2i + 1) % 8. 색 번호 0~7 = 게임 색 코드 04 03 06 07 0E 11 10 1F
+   * 사진 판독기(ocr.js)가 읽은 색 줄을 여기서 고치고 예전 5비트 글자 코드(72글자 줄)로 바꿔 넘김 → 그 뒤는 예전 해독 그대로 */
+  const COL_ALPHA = 'MW6P4Y5ADZ9LJUTH';
+  const COL_LINE = 72;
+  const wsum = (v, mod) => { let s = 0; for (let i = 0; i < v.length; i++) s += v[i] * (2 * i + 1); return s % mod; };
+  const colorsOk = C => C.every((c, i) => c !== (i ? C[i - 1] : 0));
+  /* 한 갈래(글자 mod 16 또는 색 mod 8) 고치기. vals의 -1 = 읽지 못함. alts[i] = [{v, cost}] (cost가 작을수록 그럴듯함), kAlts = 확인 글자 쪽 후보 */
+  function fixChannel(vals, K, alts, kAlts, mod, valid, what) {
+    const unk = [];
+    vals.forEach((v, i) => { if (v < 0) unk.push(i); });
+    const sols = [];
+    if (unk.length > 1) return { vals, status: 'bad', note: '읽지 못한 ' + what + ' ' + unk.length + '개 (자리 ' + unk.map(i => i + 1).join(', ') + ')', sols };
+    if (unk.length === 1) {
+      const i = unk[0];
+      for (let x = 0; x < mod; x++) { const v = vals.slice(); v[i] = x; if (wsum(v, mod) === K && valid(v)) sols.push({ v, cost: 0, note: (i + 1) + '번째 ' + what + ' 채움' }); }
+    } else {
+      if (wsum(vals, mod) === K && valid(vals)) return { vals, status: 'ok', note: '', sols };
+      vals.forEach((_, i) => (alts[i] || []).forEach(a => {
+        const v = vals.slice();
+        v[i] = a.v;
+        if (wsum(v, mod) === K && valid(v)) sols.push({ v, cost: a.cost, note: (i + 1) + '번째 ' + what + ' 고침' });
+      }));
+      if (valid(vals)) (kAlts || []).forEach(a => { if (a.v === wsum(vals, mod)) sols.push({ v: vals, cost: a.cost, note: '확인 글자의 ' + what + ' 고침' }); });
+    }
+    if (!sols.length) return { vals, status: 'bad', note: what + ' 확인이 안 맞음 (두 개 이상 잘못 읽었을 수 있음)', sols };
+    sols.sort((a, b) => a.cost - b.cost);
+    return { vals: sols[0].v, status: sols.length === 1 ? 'fixed' : 'guess', note: sols[0].note + (sols.length > 1 ? ' (후보 ' + sols.length + '개 중 가장 그럴듯한 것)' : ''), sols };
+  }
+  /* 색 줄 하나 고치기. row = {L, C, KL, KC, lAlts, cAlts, kLAlts, kCAlts} (ocr.js colorizeRows, L·C의 -1 = 읽지 못함) */
+  function repairColorLine(row) {
+    const n = row.L.length;
+    const res = { L: row.L, C: row.C, status: 'ok', note: '', lsols: [], csols: [] };
+    if (n === 0 || n > COL_LINE || n % 3) { res.status = 'bad'; res.note = '글자 ' + n + '개 (72개, 마지막 줄은 3의 배수여야 함). 빠지거나 더 들어간 글자가 있음'; return res; }
+    if (row.KL < 0 || row.KC < 0) { res.status = 'bad'; res.note = '확인 글자를 읽지 못함'; return res; }
+    const l = fixChannel(row.L, row.KL, row.lAlts, row.kLAlts, 16, () => true, '글자');
+    const c = fixChannel(row.C, row.KC, row.cAlts, row.kCAlts, 8, colorsOk, '색');
+    const rank = { ok: 0, fixed: 1, guess: 2, bad: 3 };
+    res.L = l.vals; res.C = c.vals; res.lsols = l.sols; res.csols = c.sols;
+    res.status = rank[l.status] >= rank[c.status] ? l.status : c.status;
+    res.note = [l.note, c.note].filter(Boolean).join(' · ');
+    return res;
+  }
+  /* 고친 색 줄 → 5비트 글자 (줄마다 96개, 마지막 줄은 더 적음). 규칙에 안 맞는 줄이면 null */
+  function colorLineSyms(L, C) {
+    if (L.length % 3) return null;
+    const v = [], out = [];
+    let prev = 0;
+    for (let i = 0; i < L.length; i++) {
+      const d = (((C[i] - prev - 1) % 8) + 8) % 8;
+      if (d > 6 || L[i] < 0 || C[i] < 0) return null;
+      v.push(L[i] + 16 * d);
+      prev = C[i];
+    }
+    for (let i = 0; i < v.length; i += 3) {
+      const g = v[i] + 112 * v[i + 1] + 12544 * v[i + 2];
+      if (g >= 1048576) return null;
+      for (let k = 0; k < 4; k++) out.push((g >> (5 * k)) & 31);
+    }
+    return out;
+  }
+  /* 기록 끝 묶음을 채운 0(0~3개)을 전체 확인값이 맞는 길이로 떼어 냄. 맞는 길이가 없으면 null */
+  function trimPad(syms) {
+    for (let p = 0; p <= 3 && p < syms.length; p++) {
+      if (p && syms[syms.length - p] !== 0) break;
+      const t = syms.slice(0, syms.length - p);
+      if (splitSum(t).sum === true) return t;
+    }
+    return null;
+  }
+  /* 5비트 글자 → 예전 코드 글 (72글자 + 공백 + 확인 글자 줄) */
+  function symsToCode(syms) {
+    const out = [];
+    for (let i = 0; i < syms.length; i += LINE_SYMS) { const ch = syms.slice(i, i + LINE_SYMS); out.push(ch.map(c => ALPHA[c]).join('') + ' ' + ALPHA[check(ch)]); }
+    return out.join('\n');
+  }
+  /* 색 줄들(쪽 순서대로) → {code: 예전 코드 글, rows: 줄마다 고친 결과, stopAt: 못 고친 줄 순번(0부터, 없으면 -1), sumOk}
+   * 못 고친 줄이 있으면 그 앞까지만. 전체 확인값이 안 맞으면 후보가 여럿이던 줄을 다른 후보로 하나씩 바꿔 봄 */
+  function colorRowsToCode(rows) {
+    const fixed = rows.map(repairColorLine), parts = [];
+    let stopAt = -1;
+    for (let i = 0; i < fixed.length; i++) {
+      const f = fixed[i];
+      if (f.status !== 'bad' && f.L.length < COL_LINE && i < fixed.length - 1) { f.status = 'bad'; f.note = '글자 ' + f.L.length + '개로 짧음. 기록의 마지막 줄이 중간에 들어온 것 같음 (쪽 순서가 바뀌었거나 쪽이 빠졌을 수 있음)'; }
+      const s = f.status === 'bad' ? null : colorLineSyms(f.L, f.C);
+      if (!s) { if (f.status !== 'bad') { f.status = 'bad'; f.note = '색 순서가 규칙에 맞지 않음'; } stopAt = i; break; }
+      parts.push(s);
+    }
+    const all = () => [].concat(...parts);
+    let syms = all(), sumOk = null;
+    if (stopAt < 0 && syms.length) {
+      let t = trimPad(syms);
+      for (let i = 0; i < parts.length && !t; i++) {
+        const f = fixed[i];
+        if (f.status !== 'guess') continue;
+        const tries = f.lsols.slice(1).map(s => [s.v, f.C]).concat(f.csols.slice(1).map(s => [f.L, s.v]));
+        for (const [L, C] of tries) {
+          const s = colorLineSyms(L, C);
+          if (!s) continue;
+          const keep = parts[i];
+          parts[i] = s;
+          t = trimPad(all());
+          if (t) { f.L = L; f.C = C; f.note += ' → 전체 확인값이 맞는 다른 후보로 바꿈'; break; }
+          parts[i] = keep;
+        }
+      }
+      sumOk = !!t;
+      if (t) { syms = t; fixed.forEach(f => { if (f.status === 'guess') f.status = 'fixed'; }); }
+    }
+    return { code: symsToCode(syms), rows: fixed, stopAt, sumOk };
+  }
+
+  const api = { DIFF, CLASS, totalSum, splitSum, ROOM, CAMP, SHOP, GAIN, ENDING, UPG, ALPHA, LINE_SYMS, check, splitLines, repairLine, decodeSyms, decodeText, COL_ALPHA, repairColorLine, colorLineSyms, colorRowsToCode, symsToCode };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RunLogDecode = api;
 
@@ -1453,7 +1590,7 @@ const RUNLOG_HIST = {"vers": ["2.0.0", "2.0.1"], "items": {"module/3": [["2.0.0"
     for (let v = lo; v < 256; v++) { c1 += hist[v]; if (c1 >= inkN * 0.9) { fgv = v; break; } }
     const bg = bgv / 255, fg = Math.max(bg + 0.2, fgv / 255);
     for (let i = 0; i < n; i++) g[i] = Math.max(0, Math.min(1, (g[i] - bg) / (fg - bg)));
-    const im = { w: img.w, h: img.h, g, tan: 0 };
+    const im = { w: img.w, h: img.h, g, tan: 0, rgb: img.data };
     im.tan = skew(im);
     return im;
   }
@@ -1884,6 +2021,77 @@ const RUNLOG_HIST = {"vers": ["2.0.0", "2.0.1"], "items": {"module/3": [["2.0.0"
     return out;
   }
 
+  /* 글자 색 (2026-11-24 색 글자 시험). 색 번호 0~7 = 게임 색 코드 (Opening_Menu.eps TestCol 순서) */
+  const COLOR_CODES = ['04', '03', '06', '07', '0E', '11', '10', '1F'];
+  /* 기본 색표 (짐작한 값). colortest.js 가 스크린샷에서 잰 색표를 ocr_colors.json 에 씀 */
+  const COLORS = [[220, 220, 220], [250, 250, 60], [240, 30, 30], [30, 220, 30], [40, 80, 240], [250, 140, 20], [170, 70, 200], [60, 220, 240]];
+  /* 글자 칸(격자 x0~x1) 안의 획 화소 RGB 평균. 가장자리의 바탕과 섞인 화소를 빼려고 칸 안 가장 밝은 화소의 60% 넘는 것만 씀 */
+  function charRgb(im, line, grid, x0, x1) {
+    const a = Math.floor(grid.x0 + x0 * grid.s), b = Math.ceil(grid.x0 + x1 * grid.s);
+    const idx = [];
+    let top = 0;
+    for (let y = line.top; y < line.bottom; y++) for (let x = a; x < b; x++) {
+      const yy = Math.round(y + x * im.tan);
+      if (x < 0 || yy < 0 || x >= im.w || yy >= im.h) continue;
+      const i = yy * im.w + x;
+      idx.push(i);
+      if (im.g[i] > top) top = im.g[i];
+    }
+    let r = 0, g = 0, bl = 0, n = 0;
+    for (const i of idx) if (im.g[i] >= top * 0.6 && top > 0) { r += im.rgb[4 * i]; g += im.rgb[4 * i + 1]; bl += im.rgb[4 * i + 2]; n++; }
+    return n ? [r / n, g / n, bl / n] : null;
+  }
+  function nearestColor(rgb, pal) {
+    let best = -1, bd = Infinity;
+    (pal || COLORS).forEach((c, k) => { const d = (rgb[0] - c[0]) ** 2 + (rgb[1] - c[1]) ** 2 + (rgb[2] - c[2]) ** 2; if (d < bd) { bd = d; best = k; } });
+    return best;
+  }
+
+  function dist(a, b) { return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2); }
+
+  /* ---------- 글자 + 색 기록 줄 (2026-11-24, src/RunLog.eps Line_Make · 해독은 decode.js colorRowsToCode) ---------- */
+  const COL_ALPHA = 'MW6P4Y5ADZ9LJUTH';
+  function onlyChars(T, s) { const chars = {}; for (const c of s) if (T.chars[c]) chars[c] = T.chars[c]; return { H: T.H, chars }; }
+  /* 한 줄을 16글자 본으로 읽고 글자마다 획 RGB를 잼. 돌려줌 {seq, rgb, old, line}
+   * old: 이웃 글자 색이 거의 다 같음 = 예전 화면(흰·노랑 8글자 묶음) 줄 → 예전 판독(readOne)으로. 색 줄은 이웃 색이 늘 다름 */
+  function readColorRow(im, line, T16) {
+    const grid = bandGrid(im, line, T16.H);
+    const r = readGrid(grid, T16);
+    const n = r.seq.length;
+    if (r.cost > MAX_COST || n < 2) return null;
+    const rgb = r.seq.map(q => charRgb(im, line, grid, q.x0, q.x1));
+    let same = 0, pairs = 0;
+    for (let i = 1; i < n - 1; i++) if (rgb[i] && rgb[i - 1]) { pairs++; if (dist(rgb[i], rgb[i - 1]) < 30) same++; }
+    return { seq: r.seq, rgb, old: pairs >= 4 && same / pairs > 0.5, line };
+  }
+  /* 사진 한 장의 색 줄들: 기본 색표에서 시작해 사진의 색으로 색표를 맞춘 뒤(가까운 색끼리 평균 4번, 기본값에서 90 넘게는 안 움직임)
+   * 글자마다 색 번호와 다른 후보를 정해 row(decode.js repairColorLine 입력)를 붙임. 마지막 글자 = 확인 글자 */
+  function colorizeRows(rows) {
+    const pal = COLORS.map(c => c.slice());
+    const pts = [];
+    rows.forEach(r => r.rgb.forEach(c => { if (c) pts.push(c); }));
+    for (let it = 0; it < 4; it++) {
+      const acc = pal.map(() => [0, 0, 0, 0]);
+      for (const c of pts) { const k = nearestColor(c, pal); acc[k][0] += c[0]; acc[k][1] += c[1]; acc[k][2] += c[2]; acc[k][3]++; }
+      acc.forEach((a, k) => { if (a[3] >= 3) { const m = [a[0] / a[3], a[1] / a[3], a[2] / a[3]]; if (dist(m, COLORS[k]) < 90) pal[k] = m; } });
+    }
+    const one = c => {
+      if (!c) return { k: -1, alts: [] };
+      const ds = pal.map((p, k) => ({ v: k, d: dist(c, p) })).sort((a, b) => a.d - b.d), b = ds[0].d;
+      return { k: ds[0].v, alts: ds.slice(1).filter(x => x.d < b * 1.6 + 25).map(x => ({ v: x.v, cost: (x.d - b) / (b + 10) })) };
+    };
+    const li = q => COL_ALPHA.indexOf(q.c);
+    const la = q => q.alts.filter(a => a.delta < ALT_MAX).map(a => ({ v: COL_ALPHA.indexOf(a.c), cost: a.delta })).filter(a => a.v >= 0);
+    for (const r of rows) {
+      const cs = r.rgb.map(one), n = r.seq.length - 1;
+      r.row = {
+        L: r.seq.slice(0, n).map(li), C: cs.slice(0, n).map(x => x.k), KL: li(r.seq[n]), KC: cs[n].k,
+        lAlts: r.seq.slice(0, n).map(la), cAlts: cs.slice(0, n).map(x => x.alts), kLAlts: la(r.seq[n]), kCAlts: cs[n].alts,
+      };
+    }
+    return pal;
+  }
+
   /* 본 저장·읽기 (사이트에 넣을 글) */
   function pack(T) {
     const chars = {};
@@ -1896,7 +2104,7 @@ const RUNLOG_HIST = {"vers": ["2.0.0", "2.0.1"], "items": {"module/3": [["2.0.0"
     return { H: P.H, chars };
   }
 
-  const api = { ALPHA, toGray, findLines, bandGrid, readGrid, fixLine, harvest, align, refine, readImage, prepareImage, readOne, readMulti, pack, unpack };
+  const api = { ALPHA, toGray, findLines, bandGrid, readGrid, fixLine, harvest, align, refine, readImage, prepareImage, readOne, readMulti, pack, unpack, COLOR_CODES, COLORS, charRgb, nearestColor, COL_ALPHA, onlyChars, readColorRow, colorizeRows };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RunLogOcr = api;
 })(this);
@@ -2937,7 +3145,8 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
   function setView(v) {
     const e = v === 'ency';
     if (v !== 'dec' && !$('v-dec').hidden) decScroll = scrollY;
-    $('v-dec').hidden = v !== 'dec'; $('v-ency').hidden = !e; $('v-ver').hidden = v !== 'ver';
+    $('v-dec').hidden = v !== 'dec'; $('v-ency').hidden = !e; $('v-ver').hidden = v !== 'ver'; $('v-test').hidden = v !== 'test';
+    if (v === 'test') $('tab-test').hidden = false;
     if (v === 'ver') verRender();
     document.querySelectorAll('.views button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
     movePill();
@@ -3032,6 +3241,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     verRender();
   });
   function applyHash() {
+    if (location.hash === '#test') { setView('test'); scrollTo(0, 0); return; } //색 판독 시험 탭 (주소에 #test가 있을 때만 보임, 2026-11-24)
     if (location.hash === '#ver') {
       if (viTarget) $('vers-list').dataset.done = '';
       setView('ver');
@@ -3074,6 +3284,7 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.view === 'ency') { if ($('v-ency').hidden) goEncy(ency.cat); }
     else if (b.dataset.view === 'ver') { if (location.hash !== '#ver') location.hash = '#ver'; }
+    else if (b.dataset.view === 'test') { if (location.hash !== '#test') location.hash = '#test'; }
     else if (location.hash) { history.pushState(null, '', location.pathname + location.search); applyHash(); }
   });
   document.addEventListener('click', e => {
@@ -3413,6 +3624,50 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
     return { canvas: c, img: { w: c.width, h: c.height, data: d.data } };
   }
   const tick = () => new Promise(r => setTimeout(r, 0));
+  /* ---------- 색 판독 시험 (사용자 2026-11-24 "테스트 탭을 따로 만들어서 판독기 수정한거 써보자"): 게임 세션이 만든 색 줄 판독(ocr.js readColorRow·colorizeRows, decode.js colorRowsToCode) ---------- */
+  const TPL16 = OCR.onlyChars(TPL, OCR.COL_ALPHA);
+  const COL_HEX = ['#e2e2e2', '#dede3e', '#ce1919', '#10e018', '#0d4bd5', '#e18d14', '#8d42a2', '#00dce2'];
+  let ctCode = '';
+  $('ct-file').addEventListener('change', async e => {
+    const files = [...e.target.files].sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
+    e.target.value = '';
+    if (!files.length) return;
+    const st = $('ct-st'), out = $('ct-out');
+    out.innerHTML = ''; ctCode = ''; $('ct-open').disabled = true;
+    const rows = [], where = [], pals = [];
+    try {
+      for (let fi = 0; fi < files.length; fi++) {
+        st.textContent = (fi + 1) + '/' + files.length + '쪽 읽는 중'; await tick();
+        const { img } = await toImageData(files[fi]);
+        const { im, lines } = OCR.prepareImage(img);
+        const pr = [];
+        let old = 0;
+        for (const ln of lines) { const cr = OCR.readColorRow(im, ln, TPL16); if (!cr) continue; if (cr.old) { old++; continue; } pr.push(cr); }
+        pals.push({ name: files[fi].name, pal: OCR.colorizeRows(pr), n: pr.length, old });
+        pr.forEach((c, k) => { rows.push(c); where.push((fi + 1) + '쪽 ' + (k + 1) + '줄'); });
+      }
+      if (!rows.length) { st.textContent = '색 줄을 찾지 못했습니다. 글자 + 색 기록 화면의 PC 스크린샷인지 확인하세요.'; return; }
+      const cv = D.colorRowsToCode(rows.map(r => r.row));
+      const res = cv.code ? D.decodeText(cv.code, N) : null;
+      ctCode = cv.code || '';
+      const SN = { ok: '맞음', fixed: '고침', guess: '추정', bad: '못 읽음' };
+      const sw = pal => '<span class="ct-pal">' + pal.map((c, k) => '<i title="' + OCR.COLOR_CODES[k] + '" style="background: rgb(' + c.map(Math.round).join(',') + ')"></i>').join('') + '</span>';
+      const rowHtml = (r, i) => { const f = cv.rows[i] || { status: 'bad', note: '해독 전에 멈춤' }, L = (f.L || r.row.L), C = (f.C || r.row.C);
+        return '<tr class="ct-' + f.status + '"><td>' + where[i] + '</td><td class="num">' + r.row.L.length + '</td><td><b>' + (SN[f.status] || f.status) + '</b></td>' +
+          '<td class="ct-glyphs">' + L.map((l, k) => '<span style="color:' + (C[k] >= 0 ? COL_HEX[C[k]] : '#777') + '">' + (l >= 0 ? OCR.COL_ALPHA[l] : '?') + '</span>').join('') + '</td><td>' + esc(f.note || '') + '</td></tr>'; };
+      const okN = cv.rows.filter(f => f.status === 'ok').length, fixN = cv.rows.filter(f => f.status === 'fixed').length;
+      st.innerHTML = '색 줄 ' + rows.length + '개 읽음 · 그대로 맞음 ' + okN + ' · 고침 ' + fixN + (cv.stopAt >= 0 ? ' · <b class="bad">' + where[cv.stopAt] + '에서 멈춤</b>' : '') +
+        (cv.sumOk === true ? ' · 전체 확인값 맞음' : cv.sumOk === false ? ' · <b class="bad">전체 확인값 안 맞음</b>' : '') +
+        (res ? (res.ok ? ' · <b class="ok">해독 성공</b>' : ' · <b class="bad">해독에 문제 있음</b>') : '');
+      out.innerHTML = '<h3 class="ct-sub">쪽마다 잰 색 <small>(흰·노랑·빨강·초록·파랑·주황·보라·하늘)</small></h3>' +
+        pals.map((p, i) => '<p class="ct-pg">' + (i + 1) + '쪽 <span class="dim">' + esc(p.name) + '</span> · 색 줄 ' + p.n + (p.old ? ' · 예전 줄 ' + p.old : '') + ' ' + sw(p.pal) + '</p>').join('') +
+        '<h3 class="ct-sub">줄마다</h3><div class="ct-wrap"><table class="ct-tab"><thead><tr><th>자리</th><th>글자</th><th>상태</th><th>읽은 글자·색</th><th>메모</th></tr></thead><tbody>' +
+        rows.map(rowHtml).join('') + '</tbody></table></div>' +
+        (ctCode ? '<h3 class="ct-sub">바꾼 예전 코드 <small>(' + ctCode.split('\n').length + '줄)</small></h3><pre class="ct-code">' + esc(ctCode) + '</pre>' : '');
+      $('ct-open').disabled = !ctCode;
+    } catch (err) { st.textContent = '읽다가 오류: ' + err.message; }
+  });
+  $('ct-open').addEventListener('click', () => { if (!ctCode) return; inputVia = '색 판독 시험'; history.pushState(null, '', location.pathname + location.search); setView('dec'); setText(ctCode); toResult(); });
   /* 사진마다 읽은 줄을 따로 모아, 짧은 줄(기록의 끝)로 끝나는 사진이 맨 뒤에 오도록 쪽 순서를 바로잡음. 옮긴 사진 번호를 돌려줌 */
   /* 사진 순서 맞추기 (사용자 2026-11-08 "순서 상관없이 놔도 순서대로 읽는 방법"):
    * 앞에서부터 한 쪽씩: 남은 쪽을 하나씩 뒤에 붙여 해독해 보고(줄 고치기까지 포함), 이상한 기록이 가장 늦게 나오는 쪽을 고름.
