@@ -838,6 +838,10 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
 .tile:has(.room-ico):hover .room-ico, .tile:has(.room-ico).on .room-ico { transform: scale(1.06); }
 .tile .room-ico { transition: transform .12s; }
 .legend .lg-ico { width: 18px; height: 18px; object-fit: contain; }
+.icons.rel-ord { align-items: flex-start; row-gap: 6px; }
+.rel-cell { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.rel-at { font-size: .58rem; color: var(--dust); white-space: nowrap; line-height: 1; }
+.rel-note { font-size: .7rem; font-weight: 400; margin-left: 4px; }
 </style>
 </head>
 <body>
@@ -898,7 +902,7 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-24 17:50</p>
+  <p class="build-tag">해독기 판: 2026-11-24 17:57</p>
   </div>
 
   <section class="ctest" id="v-test" hidden aria-label="색 판독 시험">
@@ -2348,12 +2352,19 @@ const RUNLOG_OCR_TEMPLATES2 = {"H":23,"chars":{"2":{"w":18,"g":[1,2,19,62,106,14
       /* 2) 유물 현황 */
       const gr = v => (N.grade && N.grade.relic ? N.grade.relic[v] || 0 : 0);
       const GN = RELIC_GN, ORD = [5, 3, 2, 1, 0, 4]; //시작·이벤트·상급·중급·하급·대기 순
-      const rel = end.relics.slice().sort((p, q) => ORD.indexOf(gr(p)) - ORD.indexOf(gr(q)) || byClassName('relic')(p, q));
+      /* 획득순 (사용자 2026-11-24): 기록의 얻음 순서대로, 유물마다 얻은 곳. 얻은 곳 기록이 없는 유물은 맨 뒤 (등급순) */
+      const rh0 = relicHistory(ev), rp0 = {};
+      rh0.got.forEach((g, k) => { (rp0[g.id] = rp0[g.id] || []).push(Object.assign({ k }, g)); });
+      const relG = end.relics.map(v => ({ v, g: rp0[v] && rp0[v].length ? rp0[v].shift() : null }));
+      const ordK = x => x.g ? x.g.k : gr(x.v) === 5 ? -1 : 1e9; //시작 유물은 기록이 없어도 맨 앞
+      relG.sort((a, b) => ordK(a) - ordK(b) || ORD.indexOf(gr(a.v)) - ORD.indexOf(gr(b.v)));
+      const rel = relG.map(x => x.v);
+      const relWhere = relG.map(x => x.g ? (x.g.floor ? x.g.act + '막 ' + x.g.floor + '층' : '시작') : gr(x.v) === 5 ? '시작' : '');
       const cnt = [0, 0, 0, 0, 0, 0];
       rel.forEach(v => { cnt[gr(v)]++; });
-      let relicH = '<section class="panel"><div class="blk-h"><h2>유물 <span class="cnt num">' + rel.length + '</span></h2><span class="sum">' +
+      let relicH = '<section class="panel"><div class="blk-h"><h2>유물 <span class="cnt num">' + rel.length + '</span> <small class="dim rel-note">얻은 순서</small></h2><span class="sum">' +
         ORD.filter(g => cnt[g]).map(g => '<span class="n' + g + '">' + GN[g] + ' ' + cnt[g] + '</span>').join(' · ') + '</span></div>' +
-        (rel.length ? '<div class="icons">' + rel.map(v => '<button type="button" class="ico rl g' + gr(v) + (IMG('relic', v) ? ' pic' : '') + '" data-pop="relic" data-v="' + v + '" aria-label="' + esc((named && N.relic[v]) || '유물 ' + v) + '">' + (IMG('relic', v) ? '<img alt="" src="' + IMG('relic', v) + '">' : '<i></i>') + '</button>').join('') + '</div>' : '<p class="dim">없음</p>') +
+        (rel.length ? '<div class="icons rel-ord">' + rel.map((v, ri) => '<span class="rel-cell">' + '<button type="button" class="ico rl g' + gr(v) + (IMG('relic', v) ? ' pic' : '') + '" data-pop="relic" data-v="' + v + '" aria-label="' + esc((named && N.relic[v]) || '유물 ' + v) + '">' + (IMG('relic', v) ? '<img alt="" src="' + IMG('relic', v) + '">' : '<i></i>') + '</button><small class="rel-at num">' + (relWhere[ri] || '·') + '</small></span>').join('') + '</div>' : '<p class="dim">없음</p>') +
         '<div class="subs"><div class="sub"><span class="k">저주</span>' + (end.curses.map(c => '<span class="hov" data-pop="curse" data-v="' + c.id + '" tabindex="0">' + nm('curse', c.id) + '</span> <span class="dim num">×' + c.n + '</span>').join(', ') || '<span class="dim">없음</span>') +
         '</div><div class="sub"><span class="k">물약</span>' + (end.potions.filter(v => v > 0).map(v => '<span class="hov" data-pop="potion" data-v="' + v + '" tabindex="0">' + nm('potion', v) + '</span>').join(', ') || '<span class="dim">없음</span>') + '</div></div></section>';
       /* 3) 덱 형태: 하수인과 모듈 */
