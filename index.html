@@ -828,9 +828,15 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
 .ct-code { background: var(--well); border: 1px solid var(--seam); border-radius: 6px; padding: 10px; font-size: .72rem; overflow-x: auto; margin: 0; }
 /* 경로 방 그림 (사용자 2026-11-24): 칸 가운데 그림, 아래 층 번호 */
 .tile .room-ico { width: 72%; height: 72%; object-fit: contain; margin-top: -4px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); pointer-events: none; }
-.tile:has(.room-ico) small { position: absolute; bottom: 1px; left: 3px; line-height: 1; font-size: .6rem; text-shadow: 0 0 3px #000, 0 0 2px #000; }
+.tile:has(.room-ico) small { position: absolute; top: 100%; left: 0; right: 0; text-align: center; margin-top: 1px; line-height: 1; font-size: .6rem; color: var(--dust); }
+.tile:has(.room-ico) { overflow: visible; margin-bottom: 11px; }
 .tile:has(.room-ico) .hp { position: absolute; top: 1px; right: 2px; bottom: auto; left: auto; line-height: 1; font-size: .6rem; text-shadow: 0 0 3px #000, 0 0 2px #000; }
-.tile .room-ico { width: 64% !important; height: 64% !important; margin-top: 0 !important; }
+.tile .room-ico { width: 92% !important; height: 92% !important; margin-top: 0 !important; }
+/* 그림 칸은 테두리·바탕 없이 (사용자 2026-11-24): 선택·마우스 올림은 은은한 바탕으로 */
+.tile:has(.room-ico) { border-color: transparent !important; background: transparent !important; clip-path: none !important; outline: none; }
+.tile:has(.room-ico):hover, .tile:has(.room-ico).on { background: color-mix(in srgb, currentColor 16%, transparent) !important; border-radius: 8px !important; }
+.tile:has(.room-ico):hover .room-ico, .tile:has(.room-ico).on .room-ico { transform: scale(1.06); }
+.tile .room-ico { transition: transform .12s; }
 .legend .lg-ico { width: 18px; height: 18px; object-fit: contain; }
 </style>
 </head>
@@ -892,7 +898,7 @@ button, .pick-btn, .views, .chip, .tile, .ico, .tag, .seg, .ency-patch, .ev-head
   <div class="hero" id="hero"></div>
 
   <main class="map" id="map"></main>
-  <p class="build-tag">해독기 판: 2026-11-24 16:42</p>
+  <p class="build-tag">해독기 판: 2026-11-24 17:40</p>
   </div>
 
   <section class="ctest" id="v-test" hidden aria-label="색 판독 시험">
